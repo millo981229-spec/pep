@@ -44,3 +44,7 @@ next-env.d.ts
 !.env.example
 /src/generated_prisma/
 *.log
+
+# Local Express authentication store (contains password hashes and sessions)
+/data/auth-store.json
+/data/auth-store.json.*.tmp

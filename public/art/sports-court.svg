@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="실내 스포츠 경기장 풍경">
+  <defs><linearGradient id="wall" x2="0" y2="1"><stop stop-color="#e1efed"/><stop offset="1" stop-color="#b8d4cb"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#wall)"/><circle cx="628" cy="94" r="44" fill="#fff0b0"/><path d="M0 293h800v207H0z" fill="#cb8e5d"/><path d="M80 320h640v130H80z" fill="#437d79"/><path d="M80 385h640M400 320v130" stroke="#f8e6be" stroke-width="6"/><path d="M230 320v130M570 320v130" stroke="#f8e6be" stroke-width="3"/>
+  <g fill="#62817e"><path d="M78 245h120v38H78zM602 245h120v38H602z"/><path d="M105 142h590v17H105zM105 173h590v17H105zM105 204h590v17H105z"/></g>
+  <g fill="#f3d078"><circle cx="175" cy="259" r="16"/><circle cx="625" cy="259" r="16"/></g><path d="M378 348q22-30 44 0v57h-44z" fill="#ec896c"/><circle cx="400" cy="328" r="14" fill="#d28d63"/>
+</svg>

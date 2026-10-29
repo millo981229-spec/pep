@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="저녁 축제와 등불이 있는 풍경">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#183c50"/><stop offset="1" stop-color="#7c9a8d"/></linearGradient><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#d6b875"/><stop offset="1" stop-color="#876145"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#sky)"/><circle cx="646" cy="94" r="48" fill="#ffe7a0" opacity=".95"/>
+  <path d="M0 350Q150 285 320 340t480-6v166H0Z" fill="#31565a"/><path d="M0 397q170-54 330 0t470-12v115H0Z" fill="url(#ground)"/>
+  <path d="M185 354h430v117H185z" fill="#8b5d43"/><path d="m154 354 246-115 246 115z" fill="#273e44"/><path d="m202 293 198-93 198 93z" fill="#34555a"/>
+  <g fill="#ffd477"><rect x="233" y="370" width="39" height="69" rx="4"/><rect x="303" y="370" width="39" height="69" rx="4"/><rect x="373" y="370" width="39" height="69" rx="4"/><rect x="443" y="370" width="39" height="69" rx="4"/><rect x="513" y="370" width="39" height="69" rx="4"/></g>
+  <g stroke="#f9d278" stroke-width="5"><path d="M88 140v219M711 125v235"/><path d="M48 173q40-42 80 0M671 158q40-42 80 0"/></g><g fill="#f6be67"><circle cx="88" cy="178" r="20"/><circle cx="711" cy="163" r="20"/></g>
+</svg>

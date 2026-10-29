@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="지역 야시장과 축제 부스 풍경">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#273e57"/><stop offset="1" stop-color="#df9b69"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#sky)"/><circle cx="610" cy="91" r="42" fill="#ffe6a6"/><path d="M0 370h800v130H0z" fill="#4a4a4a"/>
+  <g stroke="#f9cc7e" stroke-width="5"><path d="M145 36v136M400 22v150M655 45v127"/></g><g fill="#ffcf7d"><circle cx="145" cy="183" r="18"/><circle cx="400" cy="173" r="18"/><circle cx="655" cy="182" r="18"/></g>
+  <g transform="translate(95 190)"><path d="M0 45h220v150H0z" fill="#efd0a2"/><path d="M-15 45 110 0 235 45z" fill="#dc725a"/><path d="M28 81h54v68H28zM138 81h54v68h-54z" fill="#734c42"/></g>
+  <g transform="translate(480 190)"><path d="M0 45h220v150H0z" fill="#e9bd82"/><path d="M-15 45 110 0 235 45z" fill="#5b8790"/><path d="M26 86h65v64H26zM133 86h65v64h-65z" fill="#775344"/></g>
+  <path d="M40 366h720" stroke="#ffc979" stroke-width="4" stroke-dasharray="12 20"/>
+</svg>

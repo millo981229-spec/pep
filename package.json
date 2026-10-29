@@ -11,9 +11,9 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
     "postinstall": "prisma generate",
     "typecheck": "prisma generate && next typegen && tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
@@ -25,13 +25,15 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:check": "tsx scripts/check-db.ts"
+    "db:check": "tsx scripts/check-db.ts",
+    "auth:test": "node scripts/verify-express-auth.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "dotenv": "^17.0.0",
+    "express": "^5.1.0",
     "next": "16.4.3",
     "pg": "^8.0.0",
     "react": "^19.0.0",

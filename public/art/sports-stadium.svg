@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="야외 경기장과 관람석 풍경">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#b6dfdc"/><stop offset="1" stop-color="#ecf0d7"/></linearGradient><linearGradient id="field" x2="0" y2="1"><stop stop-color="#438f72"/><stop offset="1" stop-color="#1d5d54"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#sky)"/><circle cx="646" cy="83" r="42" fill="#ffe7a2"/><path d="M0 270h800v230H0z" fill="url(#field)"/>
+  <path d="M0 270 400 214l400 56v49H0z" fill="#3f5360"/><path d="M42 274h716" stroke="#e8c57b" stroke-width="10"/><path d="M90 308h620v148H90z" fill="none" stroke="#e9f2d8" stroke-width="4"/><path d="M400 309v147M90 382h620" stroke="#e9f2d8" stroke-width="4"/><circle cx="400" cy="382" r="46" fill="none" stroke="#e9f2d8" stroke-width="4"/>
+  <g fill="#d2a668"><path d="M74 252h70v22H74zM173 239h70v22h-70zM272 226h70v22h-70zM458 226h70v22h-70zM557 239h70v22h-70zM656 252h70v22h-70z"/></g>
+  <g fill="#fff4d0"><circle cx="218" cy="348" r="12"/><circle cx="588" cy="352" r="12"/></g>
+</svg>

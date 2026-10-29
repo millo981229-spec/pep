@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="전통 건축과 문화유산 풍경">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#dbe9d9"/><stop offset="1" stop-color="#f2ddbb"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#sky)"/><circle cx="642" cy="88" r="45" fill="#f5ce7e"/><path d="M0 365h800v135H0z" fill="#9a7653"/><path d="M150 377h500v123H150z" fill="#9c654a"/><path d="m112 377 288-156 288 156z" fill="#294f50"/><path d="m164 320 236-128 236 128z" fill="#426b67"/><path d="M212 394h66v73h-66zM300 394h66v73h-66zM434 394h66v73h-66zM522 394h66v73h-66z" fill="#f2c879"/><path d="M384 377h32v123h-32z" fill="#e4b36d"/><g fill="#6b8a6a"><circle cx="91" cy="335" r="43"/><circle cx="709" cy="336" r="43"/></g><path d="M91 370v86M709 370v86" stroke="#52715b" stroke-width="13"/>
+</svg>

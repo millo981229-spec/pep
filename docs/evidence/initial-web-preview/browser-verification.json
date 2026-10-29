@@ -1,0 +1,113 @@
+{
+  "kind": "offline-preview-browser-checks",
+  "notAGradingReport": true,
+  "scope": "Offline HTML screen and interaction checks only; no real authentication, database, AI provider, redemption, deployment or Lighthouse performance verification.",
+  "executedAt": "2026-10-29T06:55:28.801Z",
+  "source": {
+    "path": "/workspace/곳곳-웹-미리보기.html",
+    "sha256": "331f52c1a290ce16ba73b332dee5b51a90529d4e1721b5361bba5a907d28c7ae",
+    "bytes": 960928
+  },
+  "browser": "Chromium /usr/bin/chromium",
+  "method": "HTML content loaded via Playwright setContent; file URL navigation is blocked by managed browser policy.",
+  "layouts": [
+    {
+      "width": 390,
+      "view": "home",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 390,
+      "view": "explore",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 390,
+      "view": "map",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 390,
+      "view": "recommend",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 390,
+      "view": "rewards",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 390,
+      "view": "my",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "home",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "explore",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "map",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "recommend",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "rewards",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    },
+    {
+      "width": 1280,
+      "view": "my",
+      "documentOverflowPx": 0,
+      "offscreenElements": 0
+    }
+  ],
+  "interactions": [
+    {
+      "width": 390,
+      "categories": true,
+      "searchEmptyReset": true,
+      "detailEscape": true,
+      "selectedRegions": 17,
+      "aiLoginGate": true,
+      "previewRewardsDisabled": true,
+      "protectedMy": true,
+      "javascriptErrors": []
+    },
+    {
+      "width": 1280,
+      "categories": true,
+      "searchEmptyReset": true,
+      "detailEscape": true,
+      "selectedRegions": 17,
+      "aiLoginGate": true,
+      "previewRewardsDisabled": true,
+      "protectedMy": true,
+      "javascriptErrors": []
+    }
+  ],
+  "errors": [],
+  "status": "passed"
+}

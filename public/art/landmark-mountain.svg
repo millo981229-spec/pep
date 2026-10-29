@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="산과 자연 명소 풍경">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#a8d4d0"/><stop offset="1" stop-color="#e9e6c9"/></linearGradient></defs>
+  <rect width="800" height="500" fill="url(#sky)"/><circle cx="650" cy="84" r="45" fill="#ffdfa0"/><path d="m0 330 177-174 126 120 156-188 211 242v170H0z" fill="#607e72"/><path d="m0 365 205-124 126 79 126-93 343 174v99H0z" fill="#345e5b"/><path d="M0 426q200-34 400 0t400 0v74H0z" fill="#7aab75"/>
+  <path d="m290 400 110-145 110 145" fill="#dfc282"/><path d="M400 255v145" stroke="#fff0c8" stroke-width="8"/><g fill="#375f50"><path d="M102 345q24-75 48 0v82h-48zM654 345q24-75 48 0v82h-48z"/></g><g fill="#f4d884"><circle cx="126" cy="324" r="15"/><circle cx="678" cy="324" r="15"/></g>
+</svg>
