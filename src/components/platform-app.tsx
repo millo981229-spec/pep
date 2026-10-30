@@ -222,6 +222,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const [couponPreview, setCouponPreview] = useState<Offer | null>(null);
   const [couponFlow, setCouponFlow] = useState<CouponPassState>('ready');
   const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState('');
   const [checkInActivityId, setCheckInActivityId] = useState(
     'walk-seoul-danghyeoncheon',
   );
@@ -485,7 +486,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     setAuthOpen(true);
   }
   async function loginPreview() {
-    if (busy) return;
+    if (busy) return false;
     setBusy('auth');
     try {
       const result = await api<{ message: string; user: User }>(
@@ -496,8 +497,10 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       await loadAccount();
       setAuthOpen(false);
       setToast(result.message);
+      return true;
     } catch (error) {
       setToast(errorMessage(error));
+      return false;
     } finally {
       setBusy('');
     }
@@ -757,6 +760,33 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       setCouponFlow('used');
     } catch (error) {
       setToast(errorMessage(error));
+      setCouponFlow('ready');
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+  async function confirmPreviewCouponUse() {
+    if (!couponPreview || couponBusy) return;
+    if (!previewMode) {
+      setCouponFlow('used');
+      return;
+    }
+    setCouponBusy(true);
+    setCouponError('');
+    try {
+      if (!user && !(await loginPreview())) {
+        setCouponError('체험 로그인 후 다시 사용해 주세요.');
+        setCouponFlow('ready');
+        return;
+      }
+      const result = await api<{ message: string }>('/api/preview-coupon-use', {
+        offerId: couponPreview.id,
+      });
+      await loadAccount();
+      setCouponFlow('used');
+      setToast(result.message);
+    } catch (error) {
+      setCouponError(errorMessage(error));
       setCouponFlow('ready');
     } finally {
       setCouponBusy(false);
@@ -1938,6 +1968,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                           disabled={!offer.is_demo && offer.stock === 0}
                           onClick={() => {
                             if (offer.is_demo) {
+                              setCouponError('');
                               setCouponFlow('ready');
                               setCouponPreview(offer);
                               return;
@@ -2876,7 +2907,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         <Modal
           title={couponPreview.merchant}
           className="coupon-modal"
-          onClose={() => setCouponPreview(null)}
+          onClose={() => {
+            if (!couponBusy) setCouponPreview(null);
+          }}
         >
           <CouponPass
             title={couponPreview.title}
@@ -2885,11 +2918,23 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             terms={couponPreview.terms}
             barcode={`PREVIEW-${couponPreview.id.replaceAll('-', '').slice(-12).toUpperCase()}`}
             expiresLabel="미리보기 사용기한 · 교환 후 30일"
-            state={couponFlow}
+            state={
+              previewMode &&
+              account?.coupons.some(
+                (coupon) =>
+                  coupon.id === `preview-coupon-${couponPreview.id}` &&
+                  coupon.status === 'used',
+              )
+                ? 'used'
+                : couponFlow
+            }
             preview
+            previewCharge={previewMode ? couponPreview.cost : undefined}
+            busy={couponBusy}
+            error={couponError}
             onRequestConfirm={() => setCouponFlow('confirm')}
             onCancelConfirm={() => setCouponFlow('ready')}
-            onConfirm={() => setCouponFlow('used')}
+            onConfirm={() => void confirmPreviewCouponUse()}
           />
         </Modal>
       )}

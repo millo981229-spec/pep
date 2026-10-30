@@ -25,6 +25,8 @@ export function CouponPass({
   expiresLabel,
   state,
   preview,
+  previewCharge,
+  error,
   busy,
   onRequestConfirm,
   onCancelConfirm,
@@ -38,6 +40,8 @@ export function CouponPass({
   expiresLabel: string;
   state: CouponPassState;
   preview?: boolean;
+  previewCharge?: number;
+  error?: string;
   busy?: boolean;
   onRequestConfirm: () => void;
   onCancelConfirm: () => void;
@@ -63,6 +67,11 @@ export function CouponPass({
           <span>{merchant}</span>
           <strong>{title}</strong>
           <p>{expiresLabel}</p>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
           <button
             type="button"
             className="coupon-staff-button"
@@ -78,8 +87,9 @@ export function CouponPass({
           <p className="coupon-pass-terms">{terms}</p>
           {preview && (
             <small>
-              화면 시연용 쿠폰입니다. 포인트가 차감되지 않으며 실제 매장에서
-              사용할 수 없습니다.
+              {previewCharge === undefined
+                ? '화면 시연용 쿠폰입니다. 포인트가 차감되지 않으며 실제 매장에서 사용할 수 없습니다.'
+                : `사용 확인 시 체험용 마일리지 ${previewCharge.toLocaleString('ko-KR')} P가 한 번 차감됩니다. 실제 매장에서는 사용할 수 없습니다.`}
             </small>
           )}
           {state === 'used' && (
@@ -104,8 +114,14 @@ export function CouponPass({
               확인 후에는 쿠폰이 사용 완료되어 다시 사용할 수 없습니다. 매장
               직원이 확인한 경우에만 진행해 주세요.
             </p>
+            {previewCharge !== undefined && (
+              <p>
+                확인하면 체험용 마일리지 {previewCharge.toLocaleString('ko-KR')}{' '}
+                P가 차감됩니다.
+              </p>
+            )}
             <div>
-              <button type="button" onClick={onCancelConfirm}>
+              <button type="button" onClick={onCancelConfirm} disabled={busy}>
                 취소
               </button>
               <button type="button" onClick={onConfirm} disabled={busy}>

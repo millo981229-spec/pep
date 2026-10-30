@@ -109,6 +109,14 @@ try {
       404,
     );
     assert.equal(
+      (
+        await context.request.post(`${baseUrl}/api/preview-coupon-use`, {
+          data: {},
+        })
+      ).status(),
+      404,
+    );
+    assert.equal(
       (await context.cookies()).some(
         (cookie) => cookie.name === 'gotgot-session',
       ),
@@ -143,6 +151,167 @@ try {
     await page
       .getByRole('button', { name: '로그인하기', exact: true })
       .waitFor();
+    await page.getByRole('button', { name: '로그인하기', exact: true }).click();
+    await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    const offers = await page.evaluate(
+      async () => (await (await fetch('/api/catalog')).json()).offers,
+    );
+    const food = offers.find((offer) => offer.cost === 1200);
+    const large = offers.find((offer) => offer.cost === 6000);
+    const expensive = offers.find((offer) => offer.cost === 4500);
+    assert.ok(food && large && expensive);
+    await page.goto(`${baseUrl}/#/rewards`);
+    const openFood = () =>
+      page
+        .locator('.offer-card', { hasText: food.title })
+        .getByRole('button')
+        .click();
+    const confirmUse = async () => {
+      await page
+        .getByRole('button', { name: '직원 확인', exact: true })
+        .click();
+      await page
+        .locator('.coupon-confirm-dialog')
+        .getByRole('button', { name: '확인', exact: true })
+        .click();
+    };
+    await openFood();
+    await page.getByRole('button', { name: '직원 확인', exact: true }).click();
+    await page
+      .locator('.coupon-confirm-dialog')
+      .getByRole('button', { name: '취소', exact: true })
+      .click();
+    await page.keyboard.press('Escape');
+    assert.equal(
+      await page.locator('.balance-banner strong').innerText(),
+      '10,000 P',
+    );
+    await openFood();
+    await confirmUse();
+    await page
+      .getByRole('button', { name: '쿠폰 사용완료', exact: true })
+      .waitFor();
+    await page.screenshot({
+      path: path.join(evidence, `coupon-used-${width}.png`),
+    });
+    await page.keyboard.press('Escape');
+    assert.equal(
+      await page.locator('.balance-banner strong').innerText(),
+      '8,800 P',
+    );
+    await page.reload();
+    await page
+      .locator('.balance-banner strong', { hasText: '8,800' })
+      .waitFor();
+    await openFood();
+    assert.equal(
+      await page
+        .getByRole('button', { name: '쿠폰 사용완료', exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.keyboard.press('Escape');
+    const duplicate = await page.evaluate(async (offerId) => {
+      const request = () =>
+        fetch('/api/preview-coupon-use', {
+          method: 'POST',
+          body: JSON.stringify({ offerId }),
+        });
+      return (await Promise.all([request(), request()])).map(
+        (response) => response.status,
+      );
+    }, large.id);
+    assert.deepEqual(duplicate.sort(), [200, 201]);
+    const replay = await page.evaluate(
+      async (offerId) =>
+        (
+          await fetch('/api/preview-coupon-use', {
+            method: 'POST',
+            body: JSON.stringify({ offerId }),
+          })
+        ).status,
+      food.id,
+    );
+    assert.equal(replay, 200);
+    await page.reload();
+    await page
+      .locator('.balance-banner strong', { hasText: '2,800' })
+      .waitFor();
+    await page
+      .locator('.offer-card', { hasText: expensive.title })
+      .getByRole('button')
+      .click();
+    await confirmUse();
+    await page
+      .getByRole('alert')
+      .filter({ hasText: '마일리지가 부족합니다.' })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole('button', { name: '쿠폰 사용완료', exact: true })
+        .count(),
+      0,
+    );
+    await page.keyboard.press('Escape');
+    const invalid = await page.evaluate(
+      async (offerId) =>
+        (
+          await fetch('/api/preview-coupon-use', {
+            method: 'POST',
+            body: JSON.stringify({ offerId, cost: 1 }),
+          })
+        ).status,
+      expensive.id,
+    );
+    assert.equal(invalid, 400);
+    await page.goto(`${baseUrl}/#/my`);
+    await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    assert.equal(
+      await page.locator('.profile-summary > strong').innerText(),
+      '2,800 P',
+    );
+    await page
+      .getByRole('button', { name: '마일리지 내역', exact: true })
+      .click();
+    assert.equal(await page.locator('.saved-row').count(), 3);
+    await page.getByText('-1,200 P', { exact: true }).waitFor();
+    await page.getByText('-6,000 P', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '내 쿠폰함', exact: true }).click();
+    assert.equal(await page.locator('.coupon-row:disabled').count(), 2);
+    await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+    await page.getByRole('button', { name: '로그인하기', exact: true }).click();
+    await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    assert.equal(
+      await page.locator('.profile-summary > strong').innerText(),
+      '2,800 P',
+    );
+    const storageFailure = await page.evaluate(
+      async (offerId) => {
+        const original = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+          if (key === 'gotgot.preview-wallet.v1')
+            throw new DOMException('Storage full', 'QuotaExceededError');
+          return original.call(this, key, value);
+        };
+        const response = await fetch('/api/preview-coupon-use', {
+          method: 'POST',
+          body: JSON.stringify({ offerId }),
+        });
+        Storage.prototype.setItem = original;
+        return {
+          status: response.status,
+          account: await (await fetch('/api/account')).json(),
+        };
+      },
+      offers.find((offer) => offer.cost === 1000).id,
+    );
+    assert.equal(storageFailure.status, 503);
+    assert.equal(storageFailure.account.profile[0].balance, 2800);
+    assert.equal(storageFailure.account.ledger.length, 3);
+    assert.equal(storageFailure.account.coupons.length, 2);
+    console.log(
+      `✔ ${width}px 1,200P 사용 차감·취소 무차감·재열기/중복 요청 방지·잔액 부족·MY 내역·재로그인 유지·저장 실패 보호`,
+    );
     assert.deepEqual(errors, []);
     await context.close();
     console.log(

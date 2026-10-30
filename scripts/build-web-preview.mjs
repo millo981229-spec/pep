@@ -111,6 +111,7 @@ const entry = `
 
   const json = (value, status = 200) => Promise.resolve(new Response(JSON.stringify(value), {status, headers:{'Content-Type':'application/json'}}));
   const previewSessionKey = 'gotgot.preview-session.v1';
+  const previewWalletKey = 'gotgot.preview-wallet.v1';
   const previewUser = {id:'preview-visitor',username:'체험사용자'};
   const previewTopUp = {
     id:'preview-topup-10000-20261030',amount:10000,
@@ -120,10 +121,36 @@ const entry = `
     try {return window.sessionStorage.getItem(previewSessionKey)==='active';}
     catch {return false;} // No browser storage means no restored preview session.
   }
-  const previewAccount = () => ({
-    profile:[{display_name:'체험 여행자',balance:previewTopUp.amount,interests:[],gender:'unspecified'}],
-    saved:[],coupons:[],ledger:[previewTopUp],participations:[],
-  });
+  const previewOfferById = new Map(previewOffers.map(offer=>[offer.id,offer]));
+  function readPreviewUses() {
+    const raw=window.sessionStorage.getItem(previewWalletKey);
+    if(raw===null)return [];
+    const uses=JSON.parse(raw);
+    if(!Array.isArray(uses)||uses.length>previewOffers.length||uses.some(use=>
+      !use||!previewOfferById.has(use.offerId)||!Number.isSafeInteger(use.cost)||
+      use.cost<=0||use.cost>previewTopUp.amount||typeof use.createdAt!=='string'||
+      !Number.isFinite(Date.parse(use.createdAt)))||
+      new Set(uses.map(use=>use.offerId)).size!==uses.length||
+      uses.reduce((total,use)=>total+use.cost,0)>previewTopUp.amount)
+      throw new Error('Invalid preview wallet');
+    return uses;
+  }
+  function previewAccount() {
+    const uses=readPreviewUses();
+    return {
+      profile:[{display_name:'체험 여행자',balance:previewTopUp.amount-uses.reduce((total,use)=>total+use.cost,0),interests:[],gender:'unspecified'}],
+      saved:[],participations:[],
+      coupons:uses.map(use=>{
+        const offer=previewOfferById.get(use.offerId);
+        return {id:'preview-coupon-'+offer.id,cost:use.cost,status:'used',
+          redeem_code:'PREVIEW-'+offer.id.replaceAll('-','').slice(-12).toUpperCase(),
+          expires_at:new Date(Date.parse(use.createdAt)+30*86400000).toISOString(),
+          offers:{title:offer.title,merchant:offer.merchant,category:offer.category,terms:offer.terms}};
+      }),
+      ledger:[...uses.slice().reverse().map(use=>({id:'preview-spend-'+use.offerId,amount:-use.cost,
+        description:'체험 쿠폰 사용 · '+previewOfferById.get(use.offerId).title,created_at:use.createdAt})),previewTopUp],
+    };
+  }
   // The standalone file never sends credentials or user inputs to a remote service.
   window.fetch = async (input, init = {}) => {
     const raw = typeof input === 'string' ? input : input.url;
@@ -147,7 +174,31 @@ const entry = `
       catch {return json({error:'체험 로그인을 종료하지 못했습니다. 브라우저의 사이트 저장 공간을 확인해 주세요.'},503);}
       return json({message:'체험 로그인을 종료했습니다.'});
     }
-    if (pathname === '/api/account' && (!init.method || init.method === 'GET')) return hasPreviewSession()?json(previewAccount()):json({error:'로그인 버튼으로 체험을 시작해 주세요.'},401);
+    if (pathname === '/api/account' && (!init.method || init.method === 'GET')) {
+      if(!hasPreviewSession())return json({error:'로그인 버튼으로 체험을 시작해 주세요.'},401);
+      try{return json(previewAccount());}
+      catch{return json({error:'체험 지갑을 불러오지 못했습니다. 브라우저 저장 공간을 확인해 주세요.'},503);}
+    }
+    if(pathname==='/api/preview-coupon-use'&&init.method==='POST') {
+      if(!hasPreviewSession())return json({error:'로그인 버튼으로 체험을 시작해 주세요.'},401);
+      let input;
+      try{input=JSON.parse(init.body);}
+      catch{return json({error:'사용할 쿠폰을 다시 선택해 주세요.'},400);}
+      if(!input||typeof input!=='object'||Array.isArray(input)||typeof input.offerId!=='string'||Object.keys(input).some(key=>key!=='offerId'))
+        return json({error:'사용할 쿠폰을 다시 선택해 주세요.'},400);
+      const offer=previewOfferById.get(input.offerId);
+      if(!offer?.is_demo)return json({error:'체험 쿠폰을 찾지 못했습니다.'},404);
+      try {
+        const uses=readPreviewUses();
+        if(uses.some(use=>use.offerId===offer.id))return json({message:'이미 사용 완료된 체험 쿠폰입니다.'});
+        const balance=previewTopUp.amount-uses.reduce((total,use)=>total+use.cost,0);
+        if(!Number.isSafeInteger(offer.cost)||offer.cost<=0||balance<offer.cost)
+          return json({error:'마일리지가 부족합니다. 잔액을 확인해 주세요.'},409);
+        // Storage is updated synchronously before another use request can run.
+        window.sessionStorage.setItem(previewWalletKey,JSON.stringify([...uses,{offerId:offer.id,cost:offer.cost,createdAt:new Date().toISOString()}]));
+        return json({message:'체험용 마일리지 '+offer.cost.toLocaleString('ko-KR')+' P를 차감했습니다.'},201);
+      } catch {return json({error:'체험 지갑을 저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.'},503);}
+    }
     return json({error:'현재 체험 화면입니다. 실제 저장·AI 추천·마일리지 적립·쿠폰 발급은 서버 연결 후 이용할 수 있어요.'},503);
   };
   const views = new Set(['home','explore','map','recommend','rewards','my']);
