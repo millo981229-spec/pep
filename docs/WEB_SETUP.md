@@ -4,6 +4,8 @@
 
 ## 바로 화면 보기
 
+최신 소스와 단일 HTML은 `main` 브랜치에서 관리한다. `main`에 푸시하면 `.github/workflows/pages.yml`이 소스로부터 정적 미리보기를 다시 만들고 HTML과 `.nojekyll`만 GitHub Pages에 게시한다. 빌드 의존성 설치의 `--ignore-scripts`는 정적 미리보기에 필요하지 않은 Prisma 생성을 생략하기 위한 것이며 Node 서버 실행·배포를 대신하지 않는다. 저장소 루트 `index.html`은 옮겨온 공개 화면의 사본이고, 실행 가능한 원본은 `src/`와 `server.js`다. 기존 `gh-pages`는 이전 공개본 기록으로 보존한다.
+
 ```bash
 cd /workspace/pep
 npm ci

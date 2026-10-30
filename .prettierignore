@@ -7,3 +7,5 @@ package-lock.json
 next-env.d.ts
 *.tsbuildinfo
 /README.md
+# Generated standalone web preview, rebuilt from src by GitHub Pages.
+/index.html
