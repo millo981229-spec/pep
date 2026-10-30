@@ -2,7 +2,7 @@
 
 실제 웹 실행과 현재 제한은 [웹 실행 안내](docs/WEB_SETUP.md)를 먼저 읽으세요. 기존 보일러플레이트 안내는 [docs/SETUP.md](docs/SETUP.md)에 있습니다.
 
-**Express 회원가입·로그인·세션 유지와 현장 GPS 적립은 실제로 동작합니다. AI·실제 제휴 쿠폰의 운영 데이터는 Supabase와 AI 서비스 연결 후 별도로 검증해야 합니다.**
+**공개 주소는 체험 화면입니다.** Express 서버 실행본의 회원가입·로그인·세션 유지와 현장 GPS 적립은 로컬에서 검증했습니다. 실제 AI·제휴 쿠폰·Supabase 운영 데이터 연결은 별도로 검증해야 합니다. [기획 및 검증 기록](docs/PLANNING_VALIDATION.md)에서 근거와 미검증 범위를 확인할 수 있습니다.
 
 ## 프로젝트 개요
 - 한 줄 소개: 전국의 문화·스포츠·여가를 발견하고 참여를 지역 혜택으로 연결하는 웹.
@@ -29,7 +29,7 @@
 1. Node.js 24 준비 후 `npm ci`.
 2. `npm run dev`를 실행합니다. Express와 Next.js가 함께 `http://localhost:3000`에서 열립니다.
 3. 회원가입 후 로그인 상태는 7일 세션 쿠키로 유지됩니다. 인증 저장 경로 등은 [Express 인증 안내](docs/EXPRESS_AUTH.md)를 참고하세요.
-4. 화면 파일만 보려면 `node scripts/build-web-preview.mjs`를 실행합니다. 단일 HTML 미리보기에는 실제 로그인이 없습니다.
+4. 화면 파일만 보려면 `node scripts/build-web-preview.mjs`를 실행합니다. 단일 HTML에서는 체험 로그인·가상 마일리지·쿠폰 사용 흐름을 확인하며, 실제 회원 인증·운영 DB 연결과 구분합니다.
 
 화면 미리보기: https://millo981229-spec.github.io/pep/ — 정적 GitHub Pages이므로 로그인·영구 GPS 적립은 Node 서버 실행본에서 확인합니다.
 
@@ -41,10 +41,10 @@
 
 ## 팀원 역할
 (이름·학번 없이 역할만)
-- 기획:
+- 기획: 전국 지역 주민·여행객의 활동 탐색 문제 정의, 곳곳드림·AI 추천·지역 지도의 핵심 흐름 설계, 지역·관심 분야 분류와 심사 기준 정리. [기획 및 검증 기록](docs/PLANNING_VALIDATION.md)에 가설·근거·미검증 사항을 구분했습니다.
 - 프론트엔드: Next.js 16.4.3 App Router, React 19, TypeScript, 반응형 CSS, 자체 제공 한글 폰트.
 - 백엔드: Node.js·Express 인증 API, Next.js Route Handler, Supabase 운영 데이터 연동 준비.
-- 검증:
+- 검증: 390px·1280px 브라우저에서 검색·카테고리·로그인·쿠폰·마일리지 흐름 확인, Express 인증·GPS API 및 중복 처리 검사, 타입·린트·빌드 확인. 자동 검사와 실제 사용자 조사·운영 DB·실제 AI 검증을 구분하며 [검증 기록](docs/PLANNING_VALIDATION.md)에 재현 방법을 남깁니다.
 
 ## 아쉬운 점과 다음에 할 일
 

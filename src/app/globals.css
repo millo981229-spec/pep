@@ -2205,6 +2205,10 @@ legend {
   background: linear-gradient(transparent, #00000032);
 }
 .coupon-pass-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 .coupon-pass-photo > span {

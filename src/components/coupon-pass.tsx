@@ -89,7 +89,9 @@ export function CouponPass({
             <small>
               {previewCharge === undefined
                 ? '화면 시연용 쿠폰입니다. 포인트가 차감되지 않으며 실제 매장에서 사용할 수 없습니다.'
-                : `사용 확인 시 체험용 마일리지 ${previewCharge.toLocaleString('ko-KR')} P가 한 번 차감됩니다. 실제 매장에서는 사용할 수 없습니다.`}
+                : state === 'used'
+                  ? `체험용 마일리지 ${previewCharge.toLocaleString('ko-KR')} P 차감 완료. 실제 매장에서는 사용할 수 없습니다.`
+                  : `사용 확인 시 체험용 마일리지 ${previewCharge.toLocaleString('ko-KR')} P가 한 번 차감됩니다. 실제 매장에서는 사용할 수 없습니다.`}
             </small>
           )}
           {state === 'used' && (

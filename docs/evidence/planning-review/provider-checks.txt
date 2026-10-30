@@ -1,0 +1,22 @@
+✔ publishable key only in apikey, never anonymous Bearer (4.166788ms)
+✔ session token replaces supplied Authorization without dropping Prefer (0.687813ms)
+✔ quota exception maps to safe HTTP 429 (3.097543ms)
+✔ offer balance exception maps to conflict, unknown provider body is never echoed (1.981319ms)
+✔ missing migration is service unavailable (0.857073ms)
+✔ network timeout is safe 504 (0.492716ms)
+✔ malformed URL and URL credentials rejected as configuration error (0.576269ms)
+✔ unauthenticated user rejected before database access (0.316917ms)
+✔ user identity is validated using session against provider (1.393884ms)
+✔ CSRF origin required and exact origin enforced (1.67658ms)
+✔ JSON parsing and strict body byte limit (1.643871ms)
+✔ unexpected error response never leaks internals (0.689445ms)
+✔ Auth provider errors with numeric HTTP code use safe known error_code messages (1.524976ms)
+✔ missing configuration returns 503 without making a network call (0.150882ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27.432688

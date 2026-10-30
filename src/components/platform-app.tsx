@@ -580,6 +580,12 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   }
   async function recommend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (previewMode && !configured) {
+      setAiError(
+        '맞춤 추천을 준비 중이에요. 활동 둘러보기에서 지역과 관심 분야로 찾아보세요.',
+      );
+      return;
+    }
     if (!user) {
       openAuth();
       return;
@@ -1644,15 +1650,32 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </p>
                 <button
                   className="button primary full"
-                  disabled={busy === 'ai' || interests.length === 0}
+                  disabled={
+                    busy === 'ai' ||
+                    interests.length === 0 ||
+                    (previewMode && !configured)
+                  }
                 >
                   <Icon name="spark" size={18} />
                   {busy === 'ai'
                     ? '취향에 맞는 활동을 찾는 중…'
-                    : user
-                      ? '나에게 맞는 활동 추천받기'
-                      : '로그인하고 추천받기'}
+                    : previewMode && !configured
+                      ? '맞춤 추천 준비 중'
+                      : user
+                        ? '나에게 맞는 활동 추천받기'
+                        : '로그인하고 추천받기'}
                 </button>
+                {previewMode && !configured && (
+                  <div className="ai-availability-note">
+                    <p className="small muted">
+                      맞춤 추천을 준비하고 있어요. 지금은 지역과 관심 분야로
+                      활동을 찾아보세요.
+                    </p>
+                    <Link href="/explore" className="text-link">
+                      활동 둘러보기 <Icon name="arrow" size={15} />
+                    </Link>
+                  </div>
+                )}
                 <p className="form-footnote">
                   하루 최대 10회 · 실패한 요청도 횟수에 포함됩니다.
                 </p>
@@ -1762,9 +1785,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                       </span>
                     </div>
                     {!configured && (
-                      <span className="setup-notice">
-                        AI·로그인 연결 준비 중
-                      </span>
+                      <span className="setup-notice">AI 맞춤 추천 준비 중</span>
                     )}
                   </div>
                 )}
@@ -1936,6 +1957,13 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             <div className="offer-grid">
               {filteredOffers.map((offer) => {
                 const visual = offerVisuals[offer.category];
+                const previewUsed =
+                  previewMode &&
+                  account?.coupons.some(
+                    (coupon) =>
+                      coupon.id === `preview-coupon-${offer.id}` &&
+                      coupon.status === 'used',
+                  );
                 return (
                   <article key={offer.id} className="offer-card">
                     <div className={`offer-illustration offer-${visual.tone}`}>
@@ -1983,7 +2011,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                           }}
                         >
                           {offer.is_demo
-                            ? '바코드 화면 미리보기'
+                            ? previewUsed
+                              ? '사용 내역 보기'
+                              : '바코드 화면 미리보기'
                             : offer.stock === 0
                               ? '소진된 혜택'
                               : '교환하기'}
@@ -2229,9 +2259,15 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                               type="button"
                               key={coupon.id}
                               className="saved-row coupon-row"
-                              disabled={couponStatus(coupon) !== '사용 가능'}
+                              disabled={
+                                !['사용 가능', '사용 완료'].includes(
+                                  couponStatus(coupon),
+                                )
+                              }
                               onClick={() => {
-                                setCouponFlow('ready');
+                                setCouponFlow(
+                                  coupon.status === 'used' ? 'used' : 'ready',
+                                );
                                 setCouponOpen(coupon);
                               }}
                               aria-label={`${coupon.offers.title} 쿠폰 바코드 보기`}
@@ -2896,6 +2932,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               couponOpen.expires_at,
             ).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}`}
             state={couponFlow}
+            preview={previewMode}
+            previewCharge={previewMode ? couponOpen.cost : undefined}
             busy={couponBusy}
             onRequestConfirm={() => setCouponFlow('confirm')}
             onCancelConfirm={() => setCouponFlow('ready')}

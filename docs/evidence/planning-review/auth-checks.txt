@@ -1,0 +1,5 @@
+
+> nextjs-supabase-starter@0.1.0 auth:test
+> node scripts/verify-express-auth.mjs
+
+✔ 회원가입·세션·GPS 거리/오차·동시 중복 방지·식당100P·축제300P·한국시간 행사 기간·같은 장소 중복 차단·MY 기록·타인 기록 차단·재시작 보존·로그아웃 차단

@@ -34,8 +34,9 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
 });
 try {
-  const evidence = path.join(directory, 'screenshots');
-  await mkdir(evidence);
+  const evidence =
+    process.env.EVIDENCE_DIR || path.join(directory, 'screenshots');
+  await mkdir(evidence, { recursive: true });
   for (const width of [390, 1280]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
@@ -277,7 +278,22 @@ try {
     await page.getByText('-1,200 P', { exact: true }).waitFor();
     await page.getByText('-6,000 P', { exact: true }).waitFor();
     await page.getByRole('button', { name: '내 쿠폰함', exact: true }).click();
-    assert.equal(await page.locator('.coupon-row:disabled').count(), 2);
+    assert.equal(await page.locator('.coupon-row:disabled').count(), 0);
+    await page.locator('.coupon-row', { hasText: food.title }).click();
+    assert.equal(
+      await page
+        .getByRole('button', { name: '쿠폰 사용완료', exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.getByText(/체험용 마일리지 1,200 P 차감 완료/).waitFor();
+    const photo = await page.locator('.coupon-pass-photo').boundingBox();
+    const image = await page.locator('.coupon-pass-photo img').boundingBox();
+    assert.ok(photo && image && Math.abs(photo.height - image.height) <= 1);
+    await page.screenshot({
+      path: path.join(evidence, `coupon-history-${width}.png`),
+    });
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: '로그아웃', exact: true }).click();
     await page.getByRole('button', { name: '로그인하기', exact: true }).click();
     await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
@@ -309,6 +325,22 @@ try {
     assert.equal(storageFailure.account.profile[0].balance, 2800);
     assert.equal(storageFailure.account.ledger.length, 3);
     assert.equal(storageFailure.account.coupons.length, 2);
+    await page.goto(`${baseUrl}/#/recommend`);
+    const unavailable = page.getByRole('button', {
+      name: '맞춤 추천 준비 중',
+      exact: true,
+    });
+    await unavailable.waitFor();
+    assert.equal(await unavailable.isDisabled(), true);
+    await page.screenshot({
+      path: path.join(evidence, `ai-status-${width}.png`),
+      fullPage: true,
+    });
+    await page
+      .locator('.ai-availability-note')
+      .getByRole('link', { name: '활동 둘러보기' })
+      .click();
+    await page.waitForURL(/#\/explore/);
     console.log(
       `✔ ${width}px 1,200P 사용 차감·취소 무차감·재열기/중복 요청 방지·잔액 부족·MY 내역·재로그인 유지·저장 실패 보호`,
     );
