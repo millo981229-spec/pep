@@ -1,4 +1,4 @@
-import rawPlaces from './checkin-places.json';
+import { places } from './checkin-policy';
 
 export type CheckInPlace = {
   activityId: string;
@@ -12,7 +12,8 @@ export type CheckInPlace = {
   radiusMeters: number;
   maxAccuracyMeters: number;
   reward: number;
-  accessPolicy: 'walk-in';
+  venueKey: string;
+  accessPolicy: 'walk-in' | 'location-visit';
   accessNotice: string;
   startDate?: string;
   endDate?: string;
@@ -20,17 +21,26 @@ export type CheckInPlace = {
   sourceUrl: string;
 };
 
-export const checkInPlaces: CheckInPlace[] = rawPlaces
-  .filter((place) => place.accessPolicy === 'walk-in')
-  .map((place) => ({ ...place, accessPolicy: 'walk-in' as const }));
+export const checkInPlaces = places as CheckInPlace[];
+
+const placeById = new Map(
+  checkInPlaces.map((place) => [place.activityId, place]),
+);
 
 export function checkInPlace(activityId: string) {
-  return checkInPlaces.find((place) => place.activityId === activityId);
+  return placeById.get(activityId);
+}
+
+export function sameCheckInVenue(firstId: string, secondId: string) {
+  if (firstId === secondId) return true;
+  const first = checkInPlace(firstId);
+  const second = checkInPlace(secondId);
+  return Boolean(first && second && first.venueKey === second.venueKey);
 }
 
 export function placeAcceptsCheckIn(place: CheckInPlace, today: string) {
   return Boolean(
-    place.accessPolicy === 'walk-in' &&
+    ['walk-in', 'location-visit'].includes(place.accessPolicy) &&
     today &&
     (!place.startDate || today >= place.startDate) &&
     (!place.endDate || today <= place.endDate),

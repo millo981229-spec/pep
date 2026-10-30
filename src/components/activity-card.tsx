@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import type { Activity } from '@/lib/catalog';
 import { activityImageAlt, activityImageCredit } from '@/lib/category-photos';
+import { checkInPlace, placeAcceptsCheckIn } from '@/lib/checkin';
 import {
   activityArt,
   activityFallbackArt,
@@ -24,6 +25,9 @@ export function ActivityCard({
   today: string;
 }) {
   const [usingFallback, setUsingFallback] = useState(false);
+  const credit = activityImageCredit(activity, usingFallback);
+  const place = checkInPlace(activity.id);
+  const canCheckIn = place && placeAcceptsCheckIn(place, today);
   return (
     <article className="activity-card">
       <div className="card-visual">
@@ -51,9 +55,7 @@ export function ActivityCard({
           />
         </button>
         <span className="image-badge">{activity.category}</span>
-        <span className="photo-credit">
-          {activityImageCredit(activity, usingFallback)}
-        </span>
+        {credit && <span className="photo-credit">{credit}</span>}
         {!activity.reference && (
           <button
             className={`save-button ${saved ? 'saved' : ''}`}
@@ -100,6 +102,12 @@ export function ActivityCard({
             <Icon name="arrow" size={14} />
           </span>
         </div>
+        {canCheckIn && (
+          <button className="text-link" onClick={onOpen}>
+            <Icon name="pin" size={14} />
+            GPS 인증 +{place.reward.toLocaleString('ko-KR')} P
+          </button>
+        )}
       </div>
     </article>
   );

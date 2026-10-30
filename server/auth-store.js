@@ -7,9 +7,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { promisify } = require('node:util');
 const publicActivities = require('../src/lib/regional-catalog.json');
+const { places: checkInPlaces } = require('../src/lib/checkin-policy');
 
 const publicActivityById = new Map(
   publicActivities.map((activity) => [activity.id, activity]),
+);
+const checkInPlaceById = new Map(
+  checkInPlaces.map((place) => [place.activityId, place]),
 );
 
 const scrypt = promisify(crypto.scrypt);
@@ -285,10 +289,14 @@ class AuthStore {
       user.ledger ||= [];
       if (
         user.checkIns.some(
-          (checkIn) => checkIn.activityId === evidence.place.activityId,
+          (checkIn) =>
+            checkIn.activityId === evidence.place.activityId ||
+            (checkIn.venueKey ||
+              checkInPlaceById.get(checkIn.activityId)?.venueKey) ===
+              evidence.place.venueKey,
         )
       )
-        throw new AuthError(409, '이미 GPS 인증과 적립을 완료한 활동입니다.');
+        throw new AuthError(409, '이미 GPS 인증과 적립을 완료한 장소입니다.');
       const createdAt = new Date().toISOString();
       const id = crypto.randomUUID();
       const publicActivity = publicActivityById.get(evidence.place.activityId);
@@ -305,6 +313,7 @@ class AuthStore {
       const checkIn = {
         id,
         activityId: evidence.place.activityId,
+        venueKey: evidence.place.venueKey,
         region: evidence.place.region,
         distanceMeters: evidence.distanceMeters,
         accuracyMeters: evidence.accuracyMeters,

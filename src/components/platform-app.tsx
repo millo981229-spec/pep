@@ -40,6 +40,7 @@ import {
   checkInPlaces,
   gpsDistanceMeters,
   placeAcceptsCheckIn,
+  sameCheckInVenue,
   type CheckInPlace,
 } from '@/lib/checkin';
 import { ActivityCard } from './activity-card';
@@ -71,7 +72,7 @@ const navigation: {
   {
     view: 'rewards',
     href: '/rewards',
-    label: '마일리지 교환소',
+    label: '곳곳드림',
     icon: 'ticket',
   },
 ];
@@ -256,8 +257,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const detailCheckInPlace = detail ? checkInPlace(detail.id) : undefined;
   const detailMapUrl = detail ? naverMapUrl(detail) : null;
   const detailParticipation = detail
-    ? account?.participations.find(
-        (participation) => participation.activity_id === detail.id,
+    ? account?.participations.find((participation) =>
+        sameCheckInVenue(participation.activity_id, detail.id),
       )
     : undefined;
   const detailGpsCompleted =
@@ -613,7 +614,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       gpsCheck.status === 'success' ||
       account?.participations.some(
         (item) =>
-          item.activity_id === place.activityId && item.status === 'approved',
+          sameCheckInVenue(item.activity_id, place.activityId) &&
+          item.status === 'approved',
       )
     )
       return;
@@ -975,7 +977,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                   ? '지역 지도'
                   : item.view === 'recommend'
                     ? 'AI 추천'
-                    : '교환소'}
+                    : '곳곳드림'}
             </span>
           </Link>
         ))}
@@ -1378,7 +1380,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <p>참여를 확인받고 모은 마일리지로 지역의 혜택을 만나보세요.</p>
               </div>
               <Link href="/rewards" className="button dark">
-                교환소 둘러보기
+                곳곳드림 둘러보기
                 <Icon name="arrow" size={17} />
               </Link>
             </section>
@@ -1714,7 +1716,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             <div className="section-heading">
               <div>
                 <span className="eyebrow">EXPERIENCE MORE, ENJOY MORE</span>
-                <h1>마일리지 교환소</h1>
+                <h1>곳곳드림</h1>
                 <p>
                   참여로 쌓은 경험을, 지역에서 누리는 즐거움으로 바꿔보세요.
                 </p>
@@ -1751,7 +1753,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             </div>
             <div className="how-it-works">
               <span>
-                <b>01</b>가까운 산책 장소 방문
+                <b>01</b>가까운 활동 장소 방문
               </span>
               <Icon name="arrow" size={16} />
               <span>
@@ -1770,19 +1772,20 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <div>
                   <span className="eyebrow">ON-SITE GPS CHECK-IN</span>
                   <h2 id="gps-title">
-                    예약 없는 산책, 방문 인증으로 포인트 받기
+                    가까운 활동, GPS 인증으로 마일리지 받기
                   </h2>
                   <p>
-                    공공 산책 구간 250m 안에서 위치를 확인하면 장소마다 한 번만
-                    적립됩니다. 예약형 행사·유료 시설·보호센터 봉사는 자동 적립
-                    대상에서 제외했습니다.
+                    식당 100P · 축제 300P · 자연·생태 200P · 역사·전통 150P.
+                    활동 둘러보기에서도 GPS로 인증할 수 있으며, 같은 장소는 한
+                    번만 적립됩니다. 축제는 등록된 행사 기간에만 인증할 수
+                    있어요.
                   </p>
                 </div>
               </div>
               {activeCheckInPlaces.length ? (
                 <div className="gps-place-picker">
                   <label>
-                    <span>예약 없이 방문할 수 있는 산책 장소</span>
+                    <span>현재 GPS 인증 가능한 장소</span>
                     <select
                       value={selectedCheckInPlace?.activityId || ''}
                       onChange={(event) => {
@@ -1818,8 +1821,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </div>
               ) : (
                 <p className="gps-empty">
-                  현재 인증 가능한 산책 장소가 없습니다. 잠시 후 다시 확인해
-                  주세요.
+                  현재 인증 가능한 장소가 없습니다. 잠시 후 다시 확인해 주세요.
                 </p>
               )}
               <small>
@@ -2198,7 +2200,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                           <h3>아직 발급받은 쿠폰이 없어요</h3>
                           <p>마일리지를 모아 지역 혜택으로 바꿔보세요.</p>
                           <Link href="/rewards" className="button secondary">
-                            교환소 둘러보기
+                            곳곳드림 둘러보기
                           </Link>
                         </div>
                       ))}
@@ -2458,12 +2460,14 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               }
             }}
           />
-          <p className="detail-photo-credit">
-            {activityImageCredit(detail, detailImageFallback)}
-            {detail.photo && !detailImageFallback
-              ? ` · ${detail.photo.sourceLabel}`
-              : ''}
-          </p>
+          {activityImageCredit(detail, detailImageFallback) && (
+            <p className="detail-photo-credit">
+              {activityImageCredit(detail, detailImageFallback)}
+              {detail.photo && !detailImageFallback
+                ? ` · ${detail.photo.sourceLabel}`
+                : ''}
+            </p>
+          )}
           <div className="detail-facts">
             <span>
               <Icon name="clock" size={17} />
@@ -2565,7 +2569,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <section className="gps-check-card" aria-live="polite">
                   <div>
                     <span>
-                      <Icon name="pin" size={18} /> 산책 장소 방문 인증
+                      <Icon name="pin" size={18} /> GPS 장소 방문 인증
                     </span>
                     <strong>
                       +{detailCheckInPlace.reward.toLocaleString('ko-KR')} P
@@ -2575,7 +2579,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                     {detailCheckInPlace.accessNotice}
                     <br />이 장소 {detailCheckInPlace.radiusMeters}m 안에서 GPS
                     오차가 {detailCheckInPlace.maxAccuracyMeters}m 이하일 때
-                    인증됩니다. 활동당 한 번만 적립할 수 있어요.
+                    인증됩니다. 같은 장소는 한 번만 적립할 수 있어요.
                   </p>
                   <button
                     type="button"

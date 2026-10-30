@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 
-const places = require('../src/lib/checkin-places.json');
+const { places } = require('../src/lib/checkin-policy');
 const { AuthError } = require('./auth-store');
 
 const EARTH_RADIUS_METERS = 6_371_000;
@@ -53,11 +53,8 @@ function validateGpsCheckIn(input, { now = Date.now } = {}) {
   if (!activityId || activityId.length > 100)
     throw new AuthError(400, '인증할 활동을 확인해 주세요.');
   const place = places.find((candidate) => candidate.activityId === activityId);
-  if (!place || place.accessPolicy !== 'walk-in')
-    throw new AuthError(
-      404,
-      '예약 없이 장소 방문을 인증할 수 있는 산책 장소가 아닙니다.',
-    );
+  if (!place || !['walk-in', 'location-visit'].includes(place.accessPolicy))
+    throw new AuthError(404, 'GPS 방문 인증 대상 장소가 아닙니다.');
   const currentTime = now();
   const today = kstDate(currentTime);
   if (

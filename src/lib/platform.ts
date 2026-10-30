@@ -57,7 +57,7 @@ const databaseErrors: Record<string, { status: number; message: string }> = {
   },
   idempotency_conflict: {
     status: 409,
-    message: '교환 요청이 일치하지 않습니다. 교환소에서 다시 시작해 주세요.',
+    message: '교환 요청이 일치하지 않습니다. 곳곳드림에서 다시 시작해 주세요.',
   },
   participation_unavailable: {
     status: 409,

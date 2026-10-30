@@ -2072,6 +2072,7 @@ legend {
 }
 .gps-place-picker {
   display: flex;
+  min-width: 0;
   gap: 10px;
   align-items: flex-end;
 }
@@ -2088,6 +2089,8 @@ legend {
 }
 .gps-place-picker select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 44px;
   padding: 0 35px 0 12px;
   border: 1px solid #c9d8ee;
@@ -3167,7 +3170,7 @@ legend {
 
 @media (max-width: 700px) {
   .gps-reward-panel {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 18px;
     margin: 25px 0 31px;
     padding: 20px;

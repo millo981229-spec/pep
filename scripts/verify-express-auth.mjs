@@ -7,6 +7,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createExpressApp } = require('../server.js');
 const checkInPlaces = require('../src/lib/checkin-places.json');
+const { places } = require('../src/lib/checkin-policy');
+const { validateGpsCheckIn } = require('../server/check-in');
 
 const directory = await mkdtemp(path.join(tmpdir(), 'gotgot-auth-'));
 const storePath = path.join(directory, 'auth-store.json');
@@ -29,6 +31,40 @@ const checkInBody = {
   accuracy: 12,
   capturedAt: fixedNow,
 };
+const restaurant = places.find((place) => place.category === '맛집·미식');
+const festival = places.find(
+  (place) => place.activityId === 'guide-festival-2862358',
+);
+assert.ok(restaurant);
+assert.ok(festival);
+assert.equal(restaurant.reward, 100);
+assert.equal(festival.reward, 300);
+const locationBody = (place, capturedAt = fixedNow) => ({
+  activityId: place.activityId,
+  latitude: place.latitude,
+  longitude: place.longitude,
+  accuracy: 12,
+  capturedAt,
+});
+// Festival dates use Korea time, including the exact midnight boundaries.
+for (const [timestamp, accepted] of [
+  ['2026-10-15T14:59:59.999Z', false],
+  ['2026-10-15T15:00:00.000Z', true],
+  ['2026-11-08T14:59:59.999Z', true],
+  ['2026-11-08T15:00:00.000Z', false],
+]) {
+  const capturedAt = Date.parse(timestamp);
+  const validate = () =>
+    validateGpsCheckIn(locationBody(festival, capturedAt), {
+      now: () => capturedAt,
+    });
+  if (accepted) assert.equal(validate().place.reward, 300);
+  else assert.throws(validate, (error) => error.status === 409);
+}
+assert.equal(
+  places.some((place) => place.activityId.startsWith('guide-animal-welfare-')),
+  false,
+);
 
 async function start() {
   const { app } = createExpressApp({
@@ -137,9 +173,9 @@ try {
   assert.equal(account.status, 200);
   assert.equal(account.data.profile[0].display_name, username);
 
-  // A caller cannot turn a removed event into a walk-in place by submitting
+  // A caller cannot turn an excluded activity into an eligible place by submitting
   // a fake access policy or reward. Only the server's canonical list is used.
-  for (const activityId of ['guide-sports-2371631', 'guide-festival-2862358']) {
+  for (const activityId of ['guide-sports-2371631', 'not-an-eligible-place']) {
     const removedEvent = await request(running.baseUrl, '/api/check-in', {
       body: {
         ...checkInBody,
@@ -232,6 +268,26 @@ try {
   assert.equal(persistedAccount.data.participations.length, 1);
   assert.equal(persistedAccount.data.ledger.length, 1);
 
+  for (const place of [restaurant, festival]) {
+    const earned = await request(running.baseUrl, '/api/check-in', {
+      body: { ...locationBody(place), reward: 999999 },
+      cookie: otherAccount.cookie,
+    });
+    assert.equal(earned.status, 201);
+    assert.equal(earned.data.checkIn.reward, place.reward);
+  }
+  const aliasDuplicate = await request(running.baseUrl, '/api/check-in', {
+    body: checkInBody,
+    cookie: otherAccount.cookie,
+  });
+  assert.equal(aliasDuplicate.status, 409);
+  const categoryAccount = await request(running.baseUrl, '/api/account', {
+    cookie: otherAccount.cookie,
+  });
+  assert.equal(categoryAccount.data.profile[0].balance, 400);
+  assert.equal(categoryAccount.data.participations.length, 2);
+  assert.equal(categoryAccount.data.ledger.length, 2);
+
   const loggedOut = await request(running.baseUrl, '/api/logout', {
     body: {},
     cookie: loggedIn.cookie,
@@ -248,7 +304,7 @@ try {
   assert.equal(afterLogout.status, 401);
 
   console.log(
-    '✔ 회원가입·scrypt·HttpOnly 세션·예약/행사 적립 제외·GPS 거리/오차·동시 중복 방지·서버 적립금·MY 장소·타인 기록 차단·좌표 비저장·재시작 보존·로그아웃 차단',
+    '✔ 회원가입·세션·GPS 거리/오차·동시 중복 방지·식당100P·축제300P·한국시간 행사 기간·같은 장소 중복 차단·MY 기록·타인 기록 차단·재시작 보존·로그아웃 차단',
   );
 } finally {
   if (running.server.listening) await stop(running.server);

@@ -9,9 +9,26 @@ const dependencyRoot =
 const require = createRequire(path.join(dependencyRoot, 'package.json'));
 const { chromium } = require('playwright');
 const baseUrl = process.env.WEB_BASE_URL || 'http://127.0.0.1:3000';
-const places = JSON.parse(
-  await readFile(new URL('../src/lib/checkin-places.json', import.meta.url)),
+const { places } = createRequire(import.meta.url)(
+  '../src/lib/checkin-policy.js',
 );
+const today = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Seoul',
+}).format(new Date());
+const activePlaces = places.filter(
+  (place) =>
+    (!place.startDate || place.startDate <= today) &&
+    (!place.endDate || place.endDate >= today),
+);
+const restaurant = activePlaces.find((place) => place.category === '맛집·미식');
+const festival = activePlaces.find(
+  (place) =>
+    place.category === '축제·행사' && place.venueKey !== places[0].venueKey,
+);
+assert.ok(restaurant);
+assert.ok(festival);
+const evidenceDirectory =
+  process.env.EVIDENCE_DIR || 'docs/evidence/walkin-rewards';
 const records = JSON.parse(
   await readFile(new URL('../src/lib/regional-catalog.json', import.meta.url)),
 );
@@ -24,7 +41,7 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
 });
 try {
-  await mkdir('docs/evidence/walkin-rewards', { recursive: true });
+  await mkdir(evidenceDirectory, { recursive: true });
   for (const width of [390, 1280]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
@@ -54,22 +71,55 @@ try {
       .getByText(/봉사·입양은 센터 상담과 신청 조건 확인이 필요/)
       .waitFor();
     await page.screenshot({
-      path: `docs/evidence/walkin-rewards/shelter-${width}.png`,
+      path: `${evidenceDirectory}/shelter-${width}.png`,
     });
     await page.keyboard.press('Escape');
     await page.goto(`${baseUrl}/rewards`);
     await page.waitForFunction(
       (count) =>
         document.querySelectorAll('.gps-place-picker option').length === count,
-      places.length,
+      activePlaces.length,
+    );
+    await page
+      .getByRole('heading', { name: '곳곳드림', exact: true })
+      .waitFor();
+    assert.equal(await page.getByText(/대표 이미지.*AI 생성/).count(), 0);
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      false,
     );
     await page.screenshot({
-      path: `docs/evidence/walkin-rewards/rewards-${width}.png`,
+      path: `${evidenceDirectory}/rewards-${width}.png`,
+    });
+    await context.setGeolocation({
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+    });
+    await page.goto(
+      `${baseUrl}/explore?q=${encodeURIComponent(restaurant.title)}`,
+    );
+    await page
+      .getByRole('button', { name: 'GPS 인증 +100 P', exact: true })
+      .first()
+      .click();
+    await page.getByRole('button', { name: '현재 위치로 인증하기' }).click();
+    await page.getByText(/로그인 후 다시 인증하면 100 P/).waitFor();
+    assert.equal(await page.getByText(/대표 이미지.*AI 생성/).count(), 0);
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      false,
+    );
+    await page.screenshot({
+      path: `${evidenceDirectory}/restaurant-${width}.png`,
     });
     await context.close();
     assert.deepEqual(errors, []);
     console.log(
-      `✔ ${width}px 보호센터 필터·예약조건 안내·자동 적립 제외·공공 산책 목록`,
+      `✔ ${width}px 곳곳드림·AI 이미지 문구 제거·식당 GPS 연결·가로 넘침 없음·보호센터 제외`,
     );
   }
   const context = await browser.newContext({
@@ -109,6 +159,43 @@ try {
     true,
   );
   await page.keyboard.press('Escape');
+  let expectedBalance = places[0].reward;
+  for (const place of [restaurant, festival]) {
+    await context.setGeolocation({
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
+    await page.goto(`${baseUrl}/explore?q=${encodeURIComponent(place.title)}`);
+    await page
+      .getByRole('button', { name: `GPS 인증 +${place.reward} P`, exact: true })
+      .first()
+      .click();
+    await page.getByRole('button', { name: '현재 위치로 인증하기' }).click();
+    await page
+      .getByRole('button', { name: '인증·적립 완료', exact: true })
+      .waitFor();
+    expectedBalance += place.reward;
+    const accountResponse = await context.request.get(`${baseUrl}/api/account`);
+    assert.equal(
+      (await accountResponse.json()).profile[0].balance,
+      expectedBalance,
+    );
+    await page.reload();
+    await page
+      .getByRole('button', { name: `GPS 인증 +${place.reward} P`, exact: true })
+      .first()
+      .click();
+    assert.equal(
+      await page
+        .getByRole('button', { name: '인증·적립 완료', exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.keyboard.press('Escape');
+  }
+  console.log(
+    '✔ 활동 둘러보기에서 식당100P·축제300P 실제 적립·합산 잔액·새로고침 후 중복 차단',
+  );
   await page.goto(`${baseUrl}/rewards`);
   await page
     .locator('.gps-place-picker select')

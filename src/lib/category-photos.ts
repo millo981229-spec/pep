@@ -86,5 +86,5 @@ export function activityImageCredit(
   if (activity.photo && !usingFallback) {
     return `${activity.photo.scope === 'region' ? '지역 대표 사진 · ' : ''}${activity.photo.credit}`;
   }
-  return '카테고리 대표 이미지 · AI 생성';
+  return '';
 }
