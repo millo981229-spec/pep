@@ -130,7 +130,7 @@ export async function GET(request: Request) {
         : Promise.resolve([]),
       configured
         ? supabase(
-            '/rest/v1/offers?select=id,title,merchant,region,category,cost,stock,description,terms,is_demo&active=eq.true&order=cost&limit=24',
+            '/rest/v1/offers?select=id,title,merchant,region,category,cost,stock,description,terms,is_demo&active=eq.true&category=neq.교통·이동&order=cost&limit=24',
           )
         : Promise.resolve(previewOffers),
     ]);
@@ -140,7 +140,22 @@ export async function GET(request: Request) {
     ];
     return Response.json({
       activities: combined.slice(0, catalogPageSize),
-      offers: configured ? z.array(offer).parse(offers) : offers,
+      offers: configured
+        ? z.array(offer).parse(
+            z
+              .array(z.unknown())
+              .parse(offers)
+              .filter(
+                (entry) =>
+                  !(
+                    entry &&
+                    typeof entry === 'object' &&
+                    'category' in entry &&
+                    entry.category === '교통·이동'
+                  ),
+              ),
+          )
+        : offers,
       hasMore: combined.length > catalogPageSize,
       preview: !configured,
     });

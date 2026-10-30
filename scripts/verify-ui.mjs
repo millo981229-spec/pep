@@ -37,6 +37,7 @@ try {
     for (const category of addedCategories) {
       const expectedTitles = records
         .filter((record) => record.category === category)
+        .slice(0, 24)
         .map((record) => record.title)
         .sort();
       await page
@@ -155,7 +156,7 @@ try {
         );
       const address = await page
         .locator('.reference-info dl > div')
-        .filter({ has: page.getByText('주소·장소', { exact: true }) })
+        .filter({ has: page.getByText('지도 검색 장소', { exact: true }) })
         .locator('dd')
         .textContent();
       const href = await page
@@ -173,7 +174,7 @@ try {
           address.trim()
       )
         throw new Error(
-          `${district} 지도 검색어가 표시된 주소·장소와 다릅니다.`,
+          `${district} 지도 검색어가 표시된 실제 장소와 다릅니다.`,
         );
       await page.keyboard.press('Escape');
     }
@@ -254,7 +255,7 @@ try {
     await page.locator('.barcode').waitFor();
     if ((await page.locator('.barcode rect').count()) < 30)
       throw new Error('Code 128 바코드 막대가 렌더링되지 않았습니다.');
-    if (!(await page.getByText('실제 사용 불가', { exact: true }).isVisible()))
+    if (!(await page.getByText(/화면 시연용 쿠폰입니다/).isVisible()))
       throw new Error('바코드 미리보기의 사용 불가 안내가 보이지 않습니다.');
     await page.keyboard.press('Escape');
     await page.goto(`${baseUrl}/my`, { waitUntil: 'networkidle' });

@@ -21,6 +21,7 @@ import {
   type OfferCategory,
 } from '@/lib/catalog';
 import { subregions } from '@/lib/locations';
+import { locationStatus, naverMapUrl } from '@/lib/place-location';
 import {
   activityImageAlt,
   activityImageCredit,
@@ -81,7 +82,6 @@ const offerVisuals: Record<
   식음료: { icon: 'sun', kicker: 'TASTE LOCAL', tone: 'food' },
   '문화·체험': { icon: 'art', kicker: 'FIND INSPIRATION', tone: 'culture' },
   '스포츠·레저': { icon: 'activity', kicker: 'MOVE TOGETHER', tone: 'sports' },
-  '교통·이동': { icon: 'arrow', kicker: 'MOVE EASIER', tone: 'mobility' },
   '여행·관광': { icon: 'compass', kicker: 'TRAVEL LIGHT', tone: 'travel' },
   지역상품: { icon: 'leaf', kicker: 'BUY LOCAL', tone: 'local' },
   지역상생: { icon: 'heart', kicker: 'GROW TOGETHER', tone: 'community' },
@@ -241,6 +241,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       (place) => place.activityId === checkInActivityId,
     ) || activeCheckInPlaces[0];
   const detailCheckInPlace = detail ? checkInPlace(detail.id) : undefined;
+  const detailMapUrl = detail ? naverMapUrl(detail) : null;
   const detailParticipation = detail
     ? account?.participations.find(
         (participation) => participation.activity_id === detail.id,
@@ -2410,17 +2411,31 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                         : '최신 일정 미확인 · 안내 링크 제공'}
                   </dd>
                 </div>
+                <div>
+                  <dt>지도 검색 장소</dt>
+                  <dd>{detail.reference.location?.query || '장소 확인 중'}</dd>
+                </div>
+                <div>
+                  <dt>위치 확인</dt>
+                  <dd>{locationStatus(detail)}</dd>
+                </div>
               </dl>
               <p className="small muted">{detail.reference.notice}</p>
               <div className="reference-links">
-                <a
-                  className="button primary"
-                  href={`https://map.naver.com/p/search/${encodeURIComponent(detail.reference.address.trim())}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  지도에서 위치 찾기 <Icon name="pin" size={17} />
-                </a>
+                {detailMapUrl ? (
+                  <a
+                    className="button primary"
+                    href={detailMapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    지도에서 위치 찾기 <Icon name="pin" size={17} />
+                  </a>
+                ) : (
+                  <button className="button secondary" disabled>
+                    위치 확인 중
+                  </button>
+                )}
                 <a
                   className="button secondary"
                   href={detail.reference.website || detail.reference.sourceUrl}

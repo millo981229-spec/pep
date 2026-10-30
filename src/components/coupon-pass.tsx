@@ -11,7 +11,6 @@ const categoryImages: Record<OfferCategory, string> = {
   식음료: '/photos/categories/food-gourmet.webp',
   '문화·체험': '/photos/categories/culture-art.webp',
   '스포츠·레저': '/photos/categories/sports-leisure.webp',
-  '교통·이동': '/photos/categories/travel-tourism.webp',
   '여행·관광': '/photos/categories/travel-tourism.webp',
   지역상품: '/photos/categories/craft-one-day.webp',
   지역상생: '/photos/categories/volunteer-community.webp',
@@ -49,7 +48,7 @@ export function CouponPass({
       <section className={`coupon-pass ${state === 'used' ? 'is-used' : ''}`}>
         <div className="coupon-pass-photo">
           <Image
-            src={categoryImages[category]}
+            src={categoryImages[category] || categoryImages.지역상생}
             alt={`${title} 혜택 이미지`}
             fill
             sizes="(max-width: 560px) 100vw, 500px"

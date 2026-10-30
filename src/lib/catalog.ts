@@ -249,6 +249,16 @@ export type Activity = {
     website?: string;
     startDate?: string;
     endDate?: string;
+    location?: {
+      placeName: string;
+      query: string;
+      verification:
+        'source-coordinates' | 'locality-query' | 'conflict' | 'unknown';
+      latitude?: number;
+      longitude?: number;
+      naverVerifiedAt: string | null;
+      issues?: string[];
+    };
   };
 };
 // Fictional preview catalog. Never represent these as verified events or issue rewards for them.
@@ -348,7 +358,6 @@ export const offerCategories = [
   '식음료',
   '문화·체험',
   '스포츠·레저',
-  '교통·이동',
   '여행·관광',
   '지역상품',
   '지역상생',
@@ -461,18 +470,6 @@ export const previewOffers: Offer[] = [
     stock: 0,
     description: '제주의 마을과 해안길을 나만의 속도로 둘러보는 혜택입니다.',
     terms: '일반 자전거 · 최대 4시간',
-    is_demo: true,
-  },
-  {
-    id: 'preview-transit',
-    title: '지역 이동 지원 3천원권',
-    merchant: '곳곳 이동서비스 제휴 데모',
-    region: '전국',
-    category: '교통·이동',
-    cost: 2500,
-    stock: 0,
-    description: '활동 장소까지 조금 더 편하게 이동하도록 돕는 혜택입니다.',
-    terms: '지정 지역 교통 서비스 · 1회 사용',
     is_demo: true,
   },
   {

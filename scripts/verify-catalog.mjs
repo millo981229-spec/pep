@@ -46,7 +46,8 @@ const get = async (params) => {
   );
   return { status: response.status, data: await response.json() };
 };
-assert.equal(previewOffers.length, 16);
+assert.equal(previewOffers.length, 15);
+assert.equal(offerCategories.includes('교통·이동'), false);
 assert.equal(
   new Set(previewOffers.map((offer) => offer.id)).size,
   previewOffers.length,
@@ -62,7 +63,7 @@ for (const offer of previewOffers) {
   assert.ok(offer.terms.trim());
   assert.ok(offer.cost >= 1000 && offer.cost <= 6000);
 }
-console.log('✔ 7개 분야·16개 데모 혜택·사용 조건·실사용 차단');
+console.log('✔ 6개 분야·15개 데모 혜택·교통·이동 제거·사용 조건·실사용 차단');
 assert.ok(records.length >= 204);
 assert.equal(regionIds.length, 17);
 assert.equal(new Set(records.map((record) => record.id)).size, records.length);
@@ -127,13 +128,15 @@ for (const region of regionIds) {
   for (const category of categories) {
     const { status, data } = await get({ region, category });
     assert.equal(status, 200);
-    const expectedCount = category === '축제·행사' ? 3 : 2;
+    const expectedCount = records.filter(
+      (item) => item.region === region && item.category === category,
+    ).length;
     assert.equal(
       data.activities.length,
-      expectedCount,
+      Math.min(24, expectedCount),
       `${region} / ${category}`,
     );
-    assert.equal(data.hasMore, false);
+    assert.equal(data.hasMore, expectedCount > 24);
     assert.ok(
       data.activities.every(
         (item) => item.region === region && item.category === category,
@@ -141,7 +144,30 @@ for (const region of regionIds) {
     );
   }
 }
-console.log('✔ 실제 HTTP API: 17개 지역의 축제 3개·스포츠/음식점 2개');
+console.log('✔ 실제 HTTP API: 17개 지역의 축제·스포츠·음식점과 페이지 수 일치');
+for (const [region, districts] of Object.entries(subregions)) {
+  for (const district of districts) {
+    const { status, data } = await get({ region, district });
+    assert.equal(status, 200);
+    const usablePlaces = data.activities.filter(
+      (item) =>
+        item.reference?.location?.query &&
+        !['conflict', 'unknown'].includes(item.reference.location.verification),
+    );
+    assert.ok(
+      new Set(usablePlaces.map((item) => item.reference.location.query)).size >=
+        2,
+      `${region} ${district}: 지도 검색이 가능한 장소 최소 2개`,
+    );
+    assert.ok(
+      data.activities.every(
+        (item) =>
+          item.reference.district === district && item.region === region,
+      ),
+    );
+  }
+}
+console.log('✔ 전국 230개 탐색 지역마다 다른 장소 최소 2개·소지역 HTTP 필터');
 for (const category of activityCategories) {
   const expected = records.filter((record) => record.category === category);
   assert.ok(expected.length >= 4, `${category}: 안내 최소 4개`);

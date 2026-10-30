@@ -2,6 +2,11 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+
+const catalogRecords = JSON.parse(
+  await readFile(new URL('../src/lib/regional-catalog.json', import.meta.url)),
+);
 
 const dependencyRoot =
   process.env.BROWSER_TEST_DEPS ||
@@ -73,7 +78,7 @@ await page
   .waitFor();
 await page.locator('.header-search-trigger').click();
 await page
-  .locator('.search-result-summary', { hasText: '“진주” 검색 결과 1개' })
+  .locator('.search-result-summary', { hasText: '“진주” 검색 결과' })
   .waitFor();
 await page.locator('.card-title', { hasText: '진주남강유등축제' }).waitFor();
 if (await page.locator('.hero').count()) {
@@ -104,7 +109,11 @@ await page
   .locator('.category-tabs button.selected', { hasText: '공연·음악' })
   .waitFor();
 await page.waitForFunction(
-  () => document.querySelectorAll('.activity-card').length === 4,
+  (count) => document.querySelectorAll('.activity-card').length === count,
+  Math.min(
+    24,
+    catalogRecords.filter((record) => record.category === '공연·음악').length,
+  ),
 );
 
 await page.goto(`${previewUrl}#/map`);
@@ -117,7 +126,7 @@ await page.screenshot({
 
 await page.goto(`${previewUrl}#/rewards`);
 await page.waitForFunction(
-  () => document.querySelectorAll('.offer-card').length === 16,
+  () => document.querySelectorAll('.offer-card').length === 15,
 );
 await page.screenshot({
   path: '/workspace/곳곳-마일리지-교환소.png',
@@ -188,7 +197,7 @@ await mobilePage.screenshot({
 });
 await mobilePage.goto(`${previewUrl}#/rewards`);
 await mobilePage.waitForFunction(
-  () => document.querySelectorAll('.offer-card').length === 16,
+  () => document.querySelectorAll('.offer-card').length === 15,
 );
 if (
   await mobilePage.evaluate(

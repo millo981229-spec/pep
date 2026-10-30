@@ -493,23 +493,6 @@
     "sourceUrl": "https://github.com/data2impactMaker/korea-tourism-festival-data/blob/008dae828d1692e62996ce835a5faba643ed74ca/data/latest.json"
   },
   {
-    "activityId": "guide-festival-2995190",
-    "title": "누들대전축제",
-    "region": "daejeon",
-    "city": "대전 중구",
-    "address": "대전광역시 중구 계룡로904번길 30 (문화동) 대전 한빛탑광장",
-    "category": "축제·행사",
-    "latitude": 36.3209285835,
-    "longitude": 127.4119234684,
-    "radiusMeters": 250,
-    "maxAccuracyMeters": 100,
-    "reward": 300,
-    "startDate": "2026-11-13",
-    "endDate": "2026-11-15",
-    "sourceLabel": "한국관광공사 TourAPI 공개 수집본 · contentid 2995190",
-    "sourceUrl": "https://github.com/data2impactMaker/korea-tourism-festival-data/blob/008dae828d1692e62996ce835a5faba643ed74ca/data/latest.json"
-  },
-  {
     "activityId": "guide-sports-4137577",
     "title": "2026 국민건강 리부트 마음건강 걷기대회",
     "region": "sejong",
