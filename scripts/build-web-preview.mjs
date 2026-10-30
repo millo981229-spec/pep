@@ -112,13 +112,17 @@ const entry = `
   const json = (value, status = 200) => Promise.resolve(new Response(JSON.stringify(value), {status, headers:{'Content-Type':'application/json'}}));
   const previewSessionKey = 'gotgot.preview-session.v1';
   const previewUser = {id:'preview-visitor',username:'체험사용자'};
+  const previewTopUp = {
+    id:'preview-topup-10000-20261030',amount:10000,
+    description:'체험용 마일리지 충전',created_at:'2026-10-30T03:53:19.000Z',
+  };
   function hasPreviewSession() {
     try {return window.sessionStorage.getItem(previewSessionKey)==='active';}
     catch {return false;} // No browser storage means no restored preview session.
   }
   const previewAccount = () => ({
-    profile:[{display_name:'체험 여행자',balance:0,interests:[],gender:'unspecified'}],
-    saved:[],coupons:[],ledger:[],participations:[],
+    profile:[{display_name:'체험 여행자',balance:previewTopUp.amount,interests:[],gender:'unspecified'}],
+    saved:[],coupons:[],ledger:[previewTopUp],participations:[],
   });
   // The standalone file never sends credentials or user inputs to a remote service.
   window.fetch = async (input, init = {}) => {

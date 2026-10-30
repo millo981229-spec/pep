@@ -51,8 +51,34 @@ try {
     assert.equal(await page.locator('input[name="password"]').count(), 0);
     await page.goto(`${baseUrl}/#/my`);
     await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    assert.equal(
+      await page.locator('.profile-summary > strong').innerText(),
+      '10,000 P',
+    );
     await page.reload();
     await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    assert.equal(
+      await page.locator('.profile-summary > strong').innerText(),
+      '10,000 P',
+    );
+    await page
+      .getByRole('button', { name: '마일리지 내역', exact: true })
+      .click();
+    assert.equal(await page.locator('.saved-row').count(), 1);
+    await page.getByText('체험용 마일리지 충전', { exact: true }).waitFor();
+    await page.getByText('+10,000 P', { exact: true }).waitFor();
+    await page.goto(`${baseUrl}/#/rewards`);
+    await page
+      .locator('.balance-banner strong', { hasText: '10,000' })
+      .waitFor();
+    assert.equal(
+      await page.locator('.balance-banner strong').innerText(),
+      '10,000 P',
+    );
+    await page.reload();
+    await page
+      .locator('.balance-banner strong', { hasText: '10,000' })
+      .waitFor();
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -99,6 +125,20 @@ try {
     await page
       .getByRole('button', { name: '로그인하기', exact: true })
       .waitFor();
+    await page.getByRole('button', { name: '로그인하기', exact: true }).click();
+    await page.getByRole('heading', { name: '체험 여행자님의 곳곳' }).waitFor();
+    assert.equal(
+      await page.locator('.profile-summary > strong').innerText(),
+      '10,000 P',
+    );
+    await page
+      .getByRole('button', { name: '마일리지 내역', exact: true })
+      .click();
+    assert.equal(await page.locator('.saved-row').count(), 1);
+    await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+    await page
+      .getByRole('button', { name: '로그인하기', exact: true })
+      .waitFor();
     await page.reload();
     await page
       .getByRole('button', { name: '로그인하기', exact: true })
@@ -106,7 +146,7 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
-      `✔ ${width}px 한 번 클릭 로그인·MY·새로고침/화면 이동 유지·로그아웃·서버 권한 분리`,
+      `✔ ${width}px 곳곳드림·MY 10,000P 표시·충전 내역 1건·새로고침/재로그인 중복 충전 없음·서버 권한 분리`,
     );
   }
 
