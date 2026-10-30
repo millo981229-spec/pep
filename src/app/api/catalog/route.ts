@@ -130,7 +130,7 @@ export async function GET(request: Request) {
         : Promise.resolve([]),
       configured
         ? supabase(
-            '/rest/v1/offers?select=id,title,merchant,region,cost,stock,description,is_demo&active=eq.true&order=cost&limit=24',
+            '/rest/v1/offers?select=id,title,merchant,region,category,cost,stock,description,terms,is_demo&active=eq.true&order=cost&limit=24',
           )
         : Promise.resolve(previewOffers),
     ]);

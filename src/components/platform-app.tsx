@@ -34,8 +34,15 @@ import {
   catalogSearchParams,
   filterActivities,
 } from '@/lib/catalog-filter';
+import {
+  checkInPlace,
+  checkInPlaces,
+  gpsDistanceMeters,
+  placeAcceptsCheckIn,
+  type CheckInPlace,
+} from '@/lib/checkin';
 import { ActivityCard } from './activity-card';
-import { Barcode } from './barcode';
+import { CouponPass, type CouponPassState } from './coupon-pass';
 import { Icon, type IconName } from './icon';
 import { Modal } from './modal';
 import { RegionMap } from './region-map';
@@ -98,7 +105,12 @@ type Coupon = {
   status: string;
   redeem_code: string;
   expires_at: string;
-  offers: { title: string; merchant: string };
+  offers: {
+    title: string;
+    merchant: string;
+    category?: OfferCategory;
+    terms?: string;
+  };
 };
 type Ledger = {
   id: string;
@@ -123,6 +135,12 @@ type Account = {
   participations: Participation[];
 };
 type Recommendation = { activityId: string; reason: string };
+type GpsCheckState = {
+  status: 'idle' | 'checking' | 'verified' | 'success' | 'error';
+  message: string;
+  distanceMeters?: number;
+  accuracyMeters?: number;
+};
 
 async function api<T>(
   url: string,
@@ -189,6 +207,15 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const [interests, setInterests] = useState<Category[]>(['자연·생태']);
   const [couponOpen, setCouponOpen] = useState<Coupon | null>(null);
   const [couponPreview, setCouponPreview] = useState<Offer | null>(null);
+  const [couponFlow, setCouponFlow] = useState<CouponPassState>('ready');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [checkInActivityId, setCheckInActivityId] = useState(
+    'guide-festival-2862358',
+  );
+  const [gpsCheck, setGpsCheck] = useState<GpsCheckState>({
+    status: 'idle',
+    message: '',
+  });
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [aiError, setAiError] = useState('');
   const [page, setPage] = useState(0);
@@ -206,6 +233,14 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const catalogVersion = useRef(0);
   const [today, setToday] = useState('');
   const profile = account?.profile[0];
+  const activeCheckInPlaces = checkInPlaces.filter((place) =>
+    placeAcceptsCheckIn(place, today),
+  );
+  const selectedCheckInPlace =
+    activeCheckInPlaces.find(
+      (place) => place.activityId === checkInActivityId,
+    ) || activeCheckInPlaces[0];
+  const detailCheckInPlace = detail ? checkInPlace(detail.id) : undefined;
   const detailParticipation = detail
     ? account?.participations.find(
         (participation) => participation.activity_id === detail.id,
@@ -498,6 +533,142 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     setDetailError('');
     setParticipating(false);
     setParticipationNote('');
+    setGpsCheck({ status: 'idle', message: '' });
+  }
+  async function openActivityById(activityId: string) {
+    const local = activities.find((activity) => activity.id === activityId);
+    if (local) {
+      openDetail(local);
+      return;
+    }
+    setBusy(`place-${activityId}`);
+    try {
+      const data = await api<{ activities: Activity[] }>(
+        `/api/catalog?activityId=${encodeURIComponent(activityId)}`,
+      );
+      const activity = data.activities[0];
+      if (!activity) throw new Error('인증 장소 정보를 불러오지 못했습니다.');
+      setActivities((old) =>
+        old.some((item) => item.id === activity.id) ? old : [...old, activity],
+      );
+      openDetail(activity);
+    } catch (error) {
+      setToast(errorMessage(error));
+    } finally {
+      setBusy('');
+    }
+  }
+  async function verifyGps(place: CheckInPlace) {
+    if (gpsCheck.status === 'checking') return;
+    if (!navigator.geolocation) {
+      setGpsCheck({
+        status: 'error',
+        message: '이 브라우저에서는 현재 위치를 확인할 수 없습니다.',
+      });
+      return;
+    }
+    setGpsCheck({
+      status: 'checking',
+      message: '현재 위치와 GPS 정확도를 확인하고 있어요…',
+    });
+    try {
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 12_000,
+          }),
+      );
+      const { latitude, longitude, accuracy } = position.coords;
+      const distance = Math.round(
+        gpsDistanceMeters(
+          { latitude, longitude },
+          { latitude: place.latitude, longitude: place.longitude },
+        ),
+      );
+      const accuracyMeters = Math.round(accuracy);
+      if (accuracyMeters > place.maxAccuracyMeters) {
+        setGpsCheck({
+          status: 'error',
+          message: `GPS 오차가 약 ${accuracyMeters.toLocaleString('ko-KR')}m입니다. 야외에서 위치를 다시 확인해 주세요.`,
+          distanceMeters: distance,
+          accuracyMeters,
+        });
+        return;
+      }
+      if (distance > place.radiusMeters) {
+        setGpsCheck({
+          status: 'error',
+          message: `인증 장소에서 약 ${distance.toLocaleString('ko-KR')}m 떨어져 있습니다. ${place.radiusMeters}m 안에서 다시 시도해 주세요.`,
+          distanceMeters: distance,
+          accuracyMeters,
+        });
+        return;
+      }
+      if (!configured || !user) {
+        setGpsCheck({
+          status: 'verified',
+          message: user
+            ? `현장 위치가 확인되었습니다. 서버 연결 후 ${place.reward.toLocaleString('ko-KR')} P를 적립할 수 있어요.`
+            : `현장 위치가 확인되었습니다. 로그인하면 ${place.reward.toLocaleString('ko-KR')} P를 적립할 수 있어요.`,
+          distanceMeters: distance,
+          accuracyMeters,
+        });
+        return;
+      }
+      const result = await api<{ message: string }>('/api/check-in', {
+        activityId: place.activityId,
+        latitude,
+        longitude,
+        accuracy,
+        capturedAt: position.timestamp,
+      });
+      setGpsCheck({
+        status: 'success',
+        message: result.message,
+        distanceMeters: distance,
+        accuracyMeters,
+      });
+      setToast(result.message);
+      await loadAccount();
+    } catch (error) {
+      const locationError =
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        typeof error.code === 'number'
+          ? error.code
+          : null;
+      const message =
+        locationError !== null
+          ? locationError === 1
+            ? '위치 권한이 꺼져 있습니다. 브라우저 설정에서 위치 접근을 허용해 주세요.'
+            : locationError === 3
+              ? '위치 확인 시간이 초과되었습니다. 하늘이 보이는 곳에서 다시 시도해 주세요.'
+              : '현재 위치를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+          : errorMessage(error);
+      setGpsCheck({ status: 'error', message });
+    }
+  }
+  async function confirmCouponUse() {
+    if (!couponOpen) {
+      setCouponFlow('used');
+      return;
+    }
+    setCouponBusy(true);
+    try {
+      await mutate(`coupon-${couponOpen.id}`, {
+        action: 'useCoupon',
+        id: couponOpen.id,
+      });
+      setCouponFlow('used');
+    } catch (error) {
+      setToast(errorMessage(error));
+      setCouponFlow('ready');
+    } finally {
+      setCouponBusy(false);
+    }
   }
   function couponStatus(coupon: Coupon) {
     if (coupon.status === 'used') return '사용 완료';
@@ -1495,6 +1666,67 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <b>03</b>지역 혜택으로 교환
               </span>
             </div>
+            <section className="gps-reward-panel" aria-labelledby="gps-title">
+              <div className="gps-reward-copy">
+                <span className="gps-reward-icon">
+                  <Icon name="pin" size={25} />
+                </span>
+                <div>
+                  <span className="eyebrow">ON-SITE GPS CHECK-IN</span>
+                  <h2 id="gps-title">현장에서 위치 인증하고 포인트 받기</h2>
+                  <p>
+                    행사 장소 250m 안에서 현재 위치를 확인하면 한 번만
+                    적립됩니다. 정확한 위도·경도는 저장하지 않습니다.
+                  </p>
+                </div>
+              </div>
+              {activeCheckInPlaces.length ? (
+                <div className="gps-place-picker">
+                  <label>
+                    <span>오늘 인증 가능한 장소</span>
+                    <select
+                      value={selectedCheckInPlace?.activityId || ''}
+                      onChange={(event) => {
+                        setCheckInActivityId(event.target.value);
+                        setGpsCheck({ status: 'idle', message: '' });
+                      }}
+                    >
+                      {activeCheckInPlaces.map((place) => (
+                        <option key={place.activityId} value={place.activityId}>
+                          {place.city} · {place.title} (+{place.reward} P)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedCheckInPlace && (
+                    <button
+                      type="button"
+                      className="button primary"
+                      disabled={
+                        busy === `place-${selectedCheckInPlace.activityId}`
+                      }
+                      onClick={() =>
+                        void openActivityById(selectedCheckInPlace.activityId)
+                      }
+                    >
+                      {busy === `place-${selectedCheckInPlace.activityId}`
+                        ? '불러오는 중…'
+                        : '인증 장소 열기'}
+                      <Icon name="arrow" size={16} />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="gps-empty">
+                  오늘 인증 가능한 행사가 없습니다. 행사 기간에 다시 확인해
+                  주세요.
+                </p>
+              )}
+              <small>
+                휴대전화의 위치 권한이 필요합니다. 브라우저 GPS는 조작될 수 있어
+                실제 운영 시 현장 QR·직원 확인을 함께 적용합니다.
+              </small>
+            </section>
             <div className="section-heading small-heading">
               <h2>다음 즐거움을 골라보세요</h2>
               <span className="muted small">
@@ -1542,11 +1774,6 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 return (
                   <article key={offer.id} className="offer-card">
                     <div className={`offer-illustration offer-${visual.tone}`}>
-                      <span className="offer-demo-label">
-                        {offer.is_demo
-                          ? 'DEMO · 실제 사용 불가'
-                          : offer.category}
-                      </span>
                       <Icon name={visual.icon} size={52} />
                       <span>{visual.kicker}</span>
                       <span className="offer-stamp">
@@ -1576,6 +1803,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                           disabled={!offer.is_demo && offer.stock === 0}
                           onClick={() => {
                             if (offer.is_demo) {
+                              setCouponFlow('ready');
                               setCouponPreview(offer);
                               return;
                             }
@@ -1831,7 +2059,10 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                               key={coupon.id}
                               className="saved-row coupon-row"
                               disabled={couponStatus(coupon) !== '사용 가능'}
-                              onClick={() => setCouponOpen(coupon)}
+                              onClick={() => {
+                                setCouponFlow('ready');
+                                setCouponOpen(coupon);
+                              }}
                               aria-label={`${coupon.offers.title} 쿠폰 바코드 보기`}
                             >
                               <Icon name="ticket" size={25} />
@@ -2212,10 +2443,71 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               >
                 참고 자료: {detail.reference.sourceLabel}
               </a>
-              <p className="small muted">
-                지역 소개 정보로, 현재 곳곳의 예약·참여 인증·마일리지 적립
-                대상은 아닙니다. 이미지는 장소 사진이 아닌 일러스트입니다.
-              </p>
+              {detailCheckInPlace &&
+              placeAcceptsCheckIn(detailCheckInPlace, today) ? (
+                <section className="gps-check-card" aria-live="polite">
+                  <div>
+                    <span>
+                      <Icon name="pin" size={18} /> 현장 GPS 인증
+                    </span>
+                    <strong>
+                      +{detailCheckInPlace.reward.toLocaleString('ko-KR')} P
+                    </strong>
+                  </div>
+                  <p>
+                    이 장소 {detailCheckInPlace.radiusMeters}m 안에서 GPS 오차가{' '}
+                    {detailCheckInPlace.maxAccuracyMeters}m 이하일 때
+                    인증됩니다. 활동당 한 번만 적립할 수 있어요.
+                  </p>
+                  <button
+                    type="button"
+                    className="button primary full"
+                    disabled={gpsCheck.status === 'checking'}
+                    onClick={() => void verifyGps(detailCheckInPlace)}
+                  >
+                    <Icon name="pin" size={17} />
+                    {gpsCheck.status === 'checking'
+                      ? '현재 위치 확인 중…'
+                      : gpsCheck.status === 'success'
+                        ? '인증·적립 완료'
+                        : '현재 위치로 인증하기'}
+                  </button>
+                  {gpsCheck.message && (
+                    <p
+                      className={`gps-check-result ${gpsCheck.status}`}
+                      role={gpsCheck.status === 'error' ? 'alert' : 'status'}
+                    >
+                      {gpsCheck.message}
+                      {gpsCheck.distanceMeters !== undefined && (
+                        <small>
+                          장소까지 약{' '}
+                          {gpsCheck.distanceMeters.toLocaleString('ko-KR')}m ·
+                          GPS 오차 약{' '}
+                          {(gpsCheck.accuracyMeters ?? 0).toLocaleString(
+                            'ko-KR',
+                          )}
+                          m
+                        </small>
+                      )}
+                    </p>
+                  )}
+                  {gpsCheck.status === 'verified' && !user && (
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={openAuth}
+                    >
+                      로그인하고 적립 준비하기
+                      <Icon name="arrow" size={15} />
+                    </button>
+                  )}
+                </section>
+              ) : (
+                <p className="small muted">
+                  지역 소개 정보이며 현재 GPS 마일리지 인증 기간은 아닙니다.
+                  이미지는 장소 사진 또는 출처가 표시된 지역 대표 이미지입니다.
+                </p>
+              )}
             </div>
           ) : detail.is_demo ? (
             <div className="notice-box">
@@ -2390,66 +2682,52 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         </Modal>
       )}
       {couponOpen && (
-        <Modal title="지역 혜택 쿠폰" onClose={() => setCouponOpen(null)}>
-          <div className="coupon-ticket">
-            <span className="eyebrow">GOTGOT LOCAL BENEFIT</span>
-            <h3>{couponOpen.offers.title}</h3>
-            <p>{couponOpen.offers.merchant}</p>
-            {couponStatus(couponOpen) === '사용 가능' ? (
-              <Barcode value={couponOpen.redeem_code} />
-            ) : (
-              <p role="status">
-                {couponStatus(couponOpen)} · 사용할 수 없는 쿠폰입니다.
-              </p>
-            )}
-            <strong>
-              {new Date(couponOpen.expires_at).toLocaleDateString('ko-KR', {
-                timeZone: 'Asia/Seoul',
-              })}
-              까지
-            </strong>
-          </div>
-          <div className="notice-box coupon-notice">
-            <Icon name="info" size={19} />
-            <p>
-              사용처 직원에게 이 화면을 보여주세요. 직원이 바코드를 확인한 뒤
-              사용 처리합니다. 사용 완료된 쿠폰은 다시 열 수 없습니다.
-            </p>
-          </div>
-          <button
-            className="button secondary full"
-            onClick={() => setCouponOpen(null)}
-          >
-            쿠폰함으로 돌아가기
-          </button>
+        <Modal
+          title={couponOpen.offers.merchant}
+          className="coupon-modal"
+          onClose={() => {
+            if (!couponBusy) setCouponOpen(null);
+          }}
+        >
+          <CouponPass
+            title={couponOpen.offers.title}
+            merchant={couponOpen.offers.merchant}
+            category={couponOpen.offers.category || '지역상생'}
+            terms={
+              couponOpen.offers.terms ||
+              '사용처 직원에게 화면을 보여준 뒤 직원 확인을 눌러 주세요.'
+            }
+            barcode={couponOpen.redeem_code}
+            expiresLabel={`사용 만료일 ${new Date(
+              couponOpen.expires_at,
+            ).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}`}
+            state={couponFlow}
+            busy={couponBusy}
+            onRequestConfirm={() => setCouponFlow('confirm')}
+            onCancelConfirm={() => setCouponFlow('ready')}
+            onConfirm={() => void confirmCouponUse()}
+          />
         </Modal>
       )}
       {couponPreview && (
         <Modal
-          title="쿠폰 바코드 미리보기"
+          title={couponPreview.merchant}
+          className="coupon-modal"
           onClose={() => setCouponPreview(null)}
         >
-          <div className="coupon-ticket demo-coupon">
-            <span className="eyebrow">DEMO · NOT VALID</span>
-            <h3>{couponPreview.title}</h3>
-            <p>{couponPreview.merchant}</p>
-            <p>{couponPreview.terms}</p>
-            <Barcode value="DEMO-NOT-VALID" />
-            <strong>실제 사용 불가</strong>
-          </div>
-          <div className="notice-box coupon-notice">
-            <Icon name="info" size={19} />
-            <p>
-              바코드 화면의 디자인만 확인하는 미리보기입니다. 포인트가 차감되지
-              않으며 실제 매장에서 사용할 수 없습니다.
-            </p>
-          </div>
-          <button
-            className="button secondary full"
-            onClick={() => setCouponPreview(null)}
-          >
-            교환소로 돌아가기
-          </button>
+          <CouponPass
+            title={couponPreview.title}
+            merchant={couponPreview.merchant}
+            category={couponPreview.category}
+            terms={couponPreview.terms}
+            barcode={`PREVIEW-${couponPreview.id.replaceAll('-', '').slice(-12).toUpperCase()}`}
+            expiresLabel="미리보기 사용기한 · 교환 후 30일"
+            state={couponFlow}
+            preview
+            onRequestConfirm={() => setCouponFlow('confirm')}
+            onCancelConfirm={() => setCouponFlow('ready')}
+            onConfirm={() => setCouponFlow('used')}
+          />
         </Modal>
       )}
       {editSaved && (

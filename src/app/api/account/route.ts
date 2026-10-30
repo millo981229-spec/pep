@@ -25,7 +25,7 @@ export async function GET() {
           token,
         ),
         supabase(
-          `/rest/v1/redemptions?user_id=eq.${user.id}&select=id,cost,created_at,expires_at,status,redeem_code,offers(title,merchant)&order=created_at.desc&limit=50`,
+          `/rest/v1/redemptions?user_id=eq.${user.id}&select=id,cost,created_at,expires_at,status,redeem_code,offers(title,merchant,category,terms)&order=created_at.desc&limit=50`,
           {},
           token,
         ),
@@ -69,6 +69,7 @@ const inputSchema = z.discriminatedUnion('action', [
   z
     .object({ action: z.literal('exchange'), offerId: uuid, requestId: uuid })
     .strict(),
+  z.object({ action: z.literal('useCoupon'), id: uuid }).strict(),
   z
     .object({
       action: z.literal('profile'),
@@ -107,6 +108,17 @@ export async function POST(request: Request) {
         message: '교환을 완료했습니다. 내 쿠폰함에서 확인해 주세요.',
         result,
       });
+    }
+    if (input.action === 'useCoupon') {
+      await supabase(
+        '/rest/v1/rpc/consume_own_coupon',
+        {
+          method: 'POST',
+          body: JSON.stringify({ p_redemption_id: input.id }),
+        },
+        token,
+      );
+      return Response.json({ message: '쿠폰 사용을 완료했습니다.' });
     }
     if (input.action === 'profile')
       await supabase(

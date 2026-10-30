@@ -17,6 +17,7 @@ const b = '22222222-2222-4222-8222-222222222222';
 const activity = '33333333-3333-4333-8333-333333333333';
 const offer = '44444444-4444-4444-8444-444444444444';
 const key = '55555555-5555-4555-8555-555555555555';
+const secondKey = '66666666-6666-4666-8666-666666666666';
 after(async () => db.close());
 
 test('migration applies to an isolated PostgreSQL database', async () => {
@@ -177,12 +178,47 @@ test('retrying one exchange key issues exactly one coupon and one ledger entry',
   );
 });
 
-test('only a trusted operator can consume one valid barcode once', async () => {
-  const code = (await db.query('select redeem_code from public.redemptions'))
-    .rows[0].redeem_code;
+test('a coupon owner can confirm only their own valid coupon once', async () => {
+  const redemption = (await db.query('select id from public.redemptions'))
+    .rows[0];
   await db.exec(
-    `set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`,
+    `set role authenticated; select set_config('request.jwt.claim.sub','${b}',false);`,
   );
+  await assert.rejects(
+    db.query('select public.consume_own_coupon($1)', [redemption.id]),
+    /coupon_unavailable/,
+  );
+  await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
+  const used = (
+    await db.query('select public.consume_own_coupon($1) as id', [
+      redemption.id,
+    ])
+  ).rows[0].id;
+  assert.equal(used, redemption.id);
+  await assert.rejects(
+    db.query('select public.consume_own_coupon($1)', [redemption.id]),
+    /coupon_unavailable/,
+  );
+  await db.exec('reset role');
+});
+
+test('only a trusted operator can consume a scanned barcode once', async () => {
+  await db.query('update public.profiles set balance=100 where id=$1', [b]);
+  await db.exec(
+    `set role authenticated; select set_config('request.jwt.claim.sub','${b}',false);`,
+  );
+  const redemption = (
+    await db.query('select public.exchange_offer($1,$2) as id', [
+      offer,
+      secondKey,
+    ])
+  ).rows[0].id;
+  const code = (
+    await db.query('select redeem_code from public.redemptions where id=$1', [
+      redemption,
+    ])
+  ).rows[0].redeem_code;
+  await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
   await assert.rejects(
     db.query('select public.use_coupon($1)', [code]),
     /permission denied/,
@@ -272,7 +308,9 @@ test('archived history remains owner-only and anonymous members cannot access pr
     (await db.query('select * from public.activities')).rows.length,
     0,
   );
-  assert.equal((await db.query('select * from public.offers')).rows.length, 0);
+  // Account b also exchanged this offer above, so its own archived coupon title
+  // remains readable while unrelated activities stay hidden.
+  assert.equal((await db.query('select * from public.offers')).rows.length, 1);
   await db.exec('reset role; set role anon');
   assert.equal(
     (await db.query('select * from public.activities')).rows.length,

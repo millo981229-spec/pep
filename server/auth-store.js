@@ -181,6 +181,8 @@ class AuthStore {
           interests: [],
           gender: 'unspecified',
         },
+        checkIns: [],
+        ledger: [],
       };
       data.users.push(user);
       return {
@@ -257,9 +259,69 @@ class AuthStore {
       profile: [user.profile],
       saved: [],
       coupons: [],
-      ledger: [],
-      participations: [],
+      ledger: user.ledger || [],
+      participations: (user.checkIns || []).map((checkIn) => ({
+        id: checkIn.id,
+        activity_id: checkIn.activityId,
+        region: checkIn.region,
+        note: `GPS ${checkIn.distanceMeters}m · 정확도 ${checkIn.accuracyMeters}m`,
+        status: 'approved',
+        created_at: checkIn.createdAt,
+        activities: checkIn.activity,
+      })),
     };
+  }
+
+  async recordCheckIn(userId, evidence) {
+    return this.transaction((data) => {
+      const user = data.users.find((item) => item.id === userId);
+      if (!user) throw new AuthError(401, '다시 로그인해 주세요.');
+      user.checkIns ||= [];
+      user.ledger ||= [];
+      if (
+        user.checkIns.some(
+          (checkIn) => checkIn.activityId === evidence.place.activityId,
+        )
+      )
+        throw new AuthError(409, '이미 GPS 인증과 적립을 완료한 활동입니다.');
+      const createdAt = new Date().toISOString();
+      const id = crypto.randomUUID();
+      const activity = {
+        id: evidence.place.activityId,
+        title: evidence.place.title,
+        region: evidence.place.region,
+        city: evidence.place.city,
+        category: evidence.place.category,
+        description: `${evidence.place.title} 현장 GPS 인증`,
+        duration: '현장 GPS 인증',
+        price: null,
+        reward: evidence.place.reward,
+        image: 'festival-market',
+        date: `${evidence.place.startDate} ~ ${evidence.place.endDate}`,
+        is_demo: false,
+        tags: ['GPS 인증', evidence.place.city],
+      };
+      const checkIn = {
+        id,
+        activityId: evidence.place.activityId,
+        region: evidence.place.region,
+        distanceMeters: evidence.distanceMeters,
+        accuracyMeters: evidence.accuracyMeters,
+        reward: evidence.place.reward,
+        createdAt,
+        activity,
+      };
+      user.checkIns.push(checkIn);
+      user.profile.balance =
+        (user.profile.balance || 0) + evidence.place.reward;
+      user.ledger.unshift({
+        id: crypto.randomUUID(),
+        amount: evidence.place.reward,
+        description: `${evidence.place.title} GPS 방문 인증`,
+        created_at: createdAt,
+      });
+      return checkIn;
+    });
   }
 
   async updateProfile(userId, input) {

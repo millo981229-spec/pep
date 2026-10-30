@@ -6,6 +6,7 @@ const path = require('node:path');
 const express = require('express');
 const next = require('next');
 const { AuthError, AuthStore } = require('./server/auth-store');
+const { validateGpsCheckIn } = require('./server/check-in');
 
 const SESSION_COOKIE = 'gotgot-session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -47,7 +48,11 @@ function sameOrigin(request, response, nextMiddleware) {
   return nextMiddleware();
 }
 
-function rateLimiter({ limit = 12, windowMs = 15 * 60 * 1000 } = {}) {
+function rateLimiter({
+  limit = 12,
+  windowMs = 15 * 60 * 1000,
+  message = '로그인 요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+} = {}) {
   const attempts = new Map();
   return (request, response, nextMiddleware) => {
     const now = Date.now();
@@ -62,9 +67,7 @@ function rateLimiter({ limit = 12, windowMs = 15 * 60 * 1000 } = {}) {
         'Retry-After',
         String(Math.ceil((current.resetAt - now) / 1000)),
       );
-      return response
-        .status(429)
-        .json({ error: '로그인 요청이 많습니다. 잠시 후 다시 시도해 주세요.' });
+      return response.status(429).json({ error: message });
     }
     current.count += 1;
     return nextMiddleware();
@@ -76,10 +79,15 @@ function createExpressApp({
   storePath = process.env.AUTH_STORE_PATH ||
     path.join(process.cwd(), 'data', 'auth-store.json'),
   secureCookies = process.env.NODE_ENV === 'production',
+  now = Date.now,
 } = {}) {
   const app = express();
   const store = new AuthStore(storePath, { sessionTtlMs: SESSION_TTL_MS });
   const authLimit = rateLimiter();
+  const checkInLimit = rateLimiter({
+    limit: 8,
+    message: 'GPS 인증 요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+  });
 
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
@@ -92,7 +100,13 @@ function createExpressApp({
     nextMiddleware();
   });
   app.use(
-    ['/api/register', '/api/login', '/api/logout', '/api/account'],
+    [
+      '/api/register',
+      '/api/login',
+      '/api/logout',
+      '/api/account',
+      '/api/check-in',
+    ],
     express.json({ limit: '8kb', strict: true }),
   );
 
@@ -172,6 +186,28 @@ function createExpressApp({
     await store.updateProfile(user.id, request.body);
     response.json({ message: '추천 프로필을 저장했습니다.' });
   });
+
+  app.post(
+    '/api/check-in',
+    sameOrigin,
+    checkInLimit,
+    async (request, response) => {
+      const user = await requireSession(request);
+      const evidence = validateGpsCheckIn(request.body, { now });
+      const checkIn = await store.recordCheckIn(user.id, evidence);
+      response.status(201).json({
+        message: `${checkIn.reward.toLocaleString('ko-KR')} P를 적립했습니다.`,
+        checkIn: {
+          id: checkIn.id,
+          activityId: checkIn.activityId,
+          distanceMeters: checkIn.distanceMeters,
+          accuracyMeters: checkIn.accuracyMeters,
+          reward: checkIn.reward,
+          createdAt: checkIn.createdAt,
+        },
+      });
+    },
+  );
 
   app.use((request, response) => nextHandler(request, response));
 

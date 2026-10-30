@@ -6,16 +6,26 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { createExpressApp } = require('../server.js');
+const checkInPlaces = require('../src/lib/checkin-places.json');
 
 const directory = await mkdtemp(path.join(tmpdir(), 'gotgot-auth-'));
 const storePath = path.join(directory, 'auth-store.json');
 const username = '테스트사용자';
 const password = '안전한-테스트-비밀번호-2026';
+const fixedNow = new Date('2026-10-30T03:00:00.000Z').getTime();
+const checkInPlace = checkInPlaces.find(
+  (place) =>
+    place.activityId === 'guide-festival-2862358' &&
+    place.startDate <= '2026-10-30' &&
+    place.endDate >= '2026-10-30',
+);
+assert.ok(checkInPlace, 'GPS 인증 테스트 장소가 필요합니다.');
 
 async function start() {
   const { app } = createExpressApp({
     storePath,
     secureCookies: false,
+    now: () => fixedNow,
     nextHandler: (_request, response) => response.status(404).end(),
   });
   const server = await new Promise((resolve) => {
@@ -109,6 +119,54 @@ try {
   assert.equal(account.status, 200);
   assert.equal(account.data.profile[0].display_name, username);
 
+  const farAway = await request(running.baseUrl, '/api/check-in', {
+    body: {
+      activityId: checkInPlace.activityId,
+      latitude: checkInPlace.latitude + 0.1,
+      longitude: checkInPlace.longitude,
+      accuracy: 12,
+      capturedAt: fixedNow,
+    },
+    cookie: loggedIn.cookie,
+  });
+  assert.equal(farAway.status, 422);
+
+  const checkedIn = await request(running.baseUrl, '/api/check-in', {
+    body: {
+      activityId: checkInPlace.activityId,
+      latitude: checkInPlace.latitude,
+      longitude: checkInPlace.longitude,
+      accuracy: 12,
+      capturedAt: fixedNow,
+    },
+    cookie: loggedIn.cookie,
+  });
+  assert.equal(checkedIn.status, 201);
+  assert.equal(checkedIn.data.checkIn.reward, checkInPlace.reward);
+  assert.equal(checkedIn.data.checkIn.distanceMeters, 0);
+
+  const duplicateCheckIn = await request(running.baseUrl, '/api/check-in', {
+    body: {
+      activityId: checkInPlace.activityId,
+      latitude: checkInPlace.latitude,
+      longitude: checkInPlace.longitude,
+      accuracy: 12,
+      capturedAt: fixedNow,
+    },
+    cookie: loggedIn.cookie,
+  });
+  assert.equal(duplicateCheckIn.status, 409);
+
+  const rewardedAccount = await request(running.baseUrl, '/api/account', {
+    cookie: loggedIn.cookie,
+  });
+  assert.equal(rewardedAccount.data.profile[0].balance, checkInPlace.reward);
+  assert.equal(rewardedAccount.data.participations.length, 1);
+  assert.equal(rewardedAccount.data.ledger[0].amount, checkInPlace.reward);
+  const storeAfterCheckIn = await readFile(storePath, 'utf8');
+  assert.equal(storeAfterCheckIn.includes('"latitude"'), false);
+  assert.equal(storeAfterCheckIn.includes('"longitude"'), false);
+
   await stop(running.server);
   running = await start();
   const afterRestart = await request(running.baseUrl, '/api/session', {
@@ -127,7 +185,7 @@ try {
   assert.equal(ended.data.user, null);
 
   console.log(
-    '✔ 회원가입·scrypt 저장·로그인·HttpOnly 쿠키·재시작 세션·로그아웃',
+    '✔ 회원가입·scrypt 저장·로그인·HttpOnly 쿠키·GPS 거리/중복/적립·좌표 비저장·재시작 세션·로그아웃',
   );
 } finally {
   if (running.server.listening) await stop(running.server);

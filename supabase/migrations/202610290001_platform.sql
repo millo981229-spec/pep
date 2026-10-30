@@ -25,7 +25,11 @@ create table public.activities (
 create index activities_region_category on public.activities(region, category) where active;
 create table public.offers (
   id uuid primary key default gen_random_uuid(), title text not null, merchant text not null,
-  region text not null, description text not null, cost integer not null check(cost > 0),
+  region text not null,
+  category text not null default '지역상생' check(category in ('식음료','문화·체험','스포츠·레저','교통·이동','여행·관광','지역상품','지역상생')),
+  description text not null,
+  terms text not null default '교환 전 사용처와 이용 조건을 확인해 주세요.' check(char_length(terms) between 1 and 500),
+  cost integer not null check(cost > 0),
   stock integer not null default 0 check(stock >= 0), is_demo boolean not null default true,
   active boolean not null default false, expires_at timestamptz not null,
   created_at timestamptz not null default now()
@@ -189,6 +193,24 @@ begin
   return redemption;
 end; $$;
 
+-- The coupon owner confirms use while showing the screen to a member of staff.
+-- Ownership, current status and expiry are checked atomically on the server.
+create function public.consume_own_coupon(p_redemption_id uuid) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare u uuid := auth.uid(); redemption uuid;
+begin
+  if u is null then raise exception 'authentication_required'; end if;
+  update public.redemptions
+  set status = 'used'
+  where id = p_redemption_id
+    and user_id = u
+    and status = 'issued'
+    and expires_at > now()
+  returning id into redemption;
+  if redemption is null then raise exception 'coupon_unavailable'; end if;
+  return redemption;
+end; $$;
+
 -- Participation approval is restricted to a trusted operator, never callable by members.
 create function public.approve_participation(p_id uuid) returns void
 language plpgsql security definer set search_path = '' as $$
@@ -203,8 +225,8 @@ begin
   insert into public.point_ledger(user_id, amount, description) values(p.user_id, reward, '활동 참여 확인');
 end; $$;
 
-revoke all on function public.create_profile(), public.exchange_offer(uuid, uuid), public.reserve_ai_request(), public.use_coupon(text), public.approve_participation(uuid) from public, anon, authenticated;
-grant execute on function public.exchange_offer(uuid, uuid), public.reserve_ai_request() to authenticated;
+revoke all on function public.create_profile(), public.exchange_offer(uuid, uuid), public.reserve_ai_request(), public.use_coupon(text), public.consume_own_coupon(uuid), public.approve_participation(uuid) from public, anon, authenticated;
+grant execute on function public.exchange_offer(uuid, uuid), public.reserve_ai_request(), public.consume_own_coupon(uuid) to authenticated;
 grant execute on function public.use_coupon(text) to service_role;
 grant execute on function public.approve_participation(uuid) to service_role;
 commit;

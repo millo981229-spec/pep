@@ -17,7 +17,12 @@ const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
 });
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+const context = await browser.newContext({
+  viewport: { width: 1280, height: 900 },
+  geolocation: { latitude: 37.6494434001, longitude: 127.0656870873 },
+  permissions: ['geolocation'],
+});
+const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 
@@ -123,15 +128,35 @@ await page.waitForFunction(
   () => document.querySelectorAll('.offer-card').length === 2,
 );
 await page.locator('.offer-card').first().getByRole('button').click();
+await page.locator('.coupon-pass').waitFor();
+if (await page.locator('.offer-demo-label').count())
+  throw new Error('교환소 카드에 DEMO 좌측 상단 표기가 남아 있습니다.');
+await page.getByRole('button', { name: '직원 확인' }).click();
 await page
-  .locator('#modal-title', { hasText: '쿠폰 바코드 미리보기' })
+  .getByRole('heading', { name: '직원 확인 처리를 하시겠습니까?' })
   .waitFor();
-await page.locator('.demo-coupon', { hasText: '실제 사용 불가' }).waitFor();
+await page
+  .locator('.coupon-confirm-dialog')
+  .getByRole('button', { name: '확인' })
+  .click();
+await page.getByRole('button', { name: '쿠폰 사용완료' }).waitFor();
+await page.screenshot({
+  path: '/workspace/곳곳-쿠폰-사용완료.png',
+  fullPage: true,
+});
+await page.locator('.modal .icon-button').click();
+await page.getByRole('button', { name: '인증 장소 열기' }).click();
+await page.locator('#modal-title', { hasText: '노원달빛산책' }).waitFor();
+await page.getByRole('button', { name: '현재 위치로 인증하기' }).click();
+await page.getByText(/현장 위치가 확인되었습니다/).waitFor();
 await page.locator('.modal .icon-button').click();
 
-const mobilePage = await browser.newPage({
+const mobileContext = await browser.newContext({
   viewport: { width: 390, height: 844 },
+  geolocation: { latitude: 37.6494434001, longitude: 127.0656870873 },
+  permissions: ['geolocation'],
 });
+const mobilePage = await mobileContext.newPage();
 await mobilePage.goto(previewUrl);
 await mobilePage.waitForFunction(
   () =>
@@ -174,10 +199,25 @@ if (
 await mobilePage.screenshot({
   path: '/workspace/곳곳-마일리지-교환소-모바일.png',
 });
+await mobilePage.locator('.offer-card').first().getByRole('button').click();
+await mobilePage.locator('.coupon-pass').waitFor();
+if (
+  await mobilePage.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  )
+)
+  throw new Error('390px 쿠폰 화면에 가로 넘침이 있습니다.');
+await mobilePage.getByRole('button', { name: '직원 확인' }).click();
+await mobilePage.locator('.coupon-confirm-dialog').waitFor();
+await mobilePage.screenshot({
+  path: '/workspace/곳곳-쿠폰-직원확인-모바일.png',
+});
 await mobilePage.close();
+await mobileContext.close();
+await context.close();
 
 if (errors.length) throw new Error(`미리보기 실행 오류: ${errors.join(' | ')}`);
 await browser.close();
 console.log(
-  'Preview navigation: photos, search, activity category, rewards filter/barcode, mobile passed',
+  'Preview navigation: photos, search, activity category, GPS, coupon staff confirmation, mobile passed',
 );

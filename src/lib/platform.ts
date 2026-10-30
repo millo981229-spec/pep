@@ -47,6 +47,10 @@ const databaseErrors: Record<string, { status: number; message: string }> = {
     message:
       '이 혜택은 소진되었거나 유효기간이 지났습니다. 다른 혜택을 선택해 주세요.',
   },
+  coupon_unavailable: {
+    status: 409,
+    message: '이미 사용했거나 유효기간이 지난 쿠폰입니다.',
+  },
   insufficient_balance: {
     status: 409,
     message: '마일리지가 부족합니다. 잔액을 확인해 주세요.',
