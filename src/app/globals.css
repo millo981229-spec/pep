@@ -1439,12 +1439,56 @@ legend {
 .small-heading h2 {
   font-size: 22px;
 }
+.offer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 0 0 22px;
+}
+.offer-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid #dce6f7;
+  border-radius: 999px;
+  background: #fff;
+  color: #61738e;
+  font-size: 12px;
+  font-weight: 600;
+}
+.offer-filters button:hover:not(.selected) {
+  background: #f4f8ff;
+}
+.offer-filters button.selected {
+  border-color: #2f6bff;
+  background: #2f6bff;
+  color: #fff;
+}
+.offer-filters small {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: #edf3fd;
+  color: #5c7192;
+  font-size: 10px;
+}
+.offer-filters .selected small {
+  background: #ffffff2b;
+  color: #fff;
+}
 .offer-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
 .offer-card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
@@ -1458,21 +1502,49 @@ legend {
   align-items: center;
   justify-content: center;
 }
-.offer-illustration > span:not(.offer-stamp) {
+.offer-illustration > span:not(.offer-stamp):not(.offer-demo-label) {
   font-size: 8px;
   letter-spacing: 2px;
 }
-.offer-0 {
-  background: #efe6d6;
-  color: #ad845e;
+.offer-food {
+  color: #a75115;
+  background: #fff0dc;
 }
-.offer-1 {
-  background: #e6eddf;
-  color: #899e71;
+.offer-culture {
+  color: #6851c7;
+  background: #f0edff;
 }
-.offer-2 {
-  background: #e7e9ec;
-  color: #8b9caa;
+.offer-sports {
+  color: #167a59;
+  background: #e4f7ef;
+}
+.offer-mobility {
+  color: #1568e8;
+  background: #e7f0ff;
+}
+.offer-travel {
+  color: #0c7894;
+  background: #e5f7fb;
+}
+.offer-local {
+  color: #896810;
+  background: #fff6d8;
+}
+.offer-community {
+  color: #ad4564;
+  background: #ffedf2;
+}
+.offer-demo-label {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  padding: 5px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: #ffffffd9;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
 }
 .offer-stamp {
   position: absolute;
@@ -1491,7 +1563,24 @@ legend {
   transform: rotate(15deg);
 }
 .offer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: 20px;
+}
+.offer-category {
+  align-self: flex-start;
+  margin-bottom: 9px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #2462c7;
+  font-size: 9px;
+  font-weight: 700;
+}
+.offer-body .card-location {
+  display: block;
+  margin-bottom: 8px;
 }
 .offer-body h3 {
   font-size: 17px;
@@ -1502,12 +1591,30 @@ legend {
   font-size: 11px;
   line-height: 1.8;
 }
+.offer-body .offer-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: #f5f8fd;
+  color: #5f7390;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.offer-terms svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #2f6bff;
+}
 .offer-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 22px;
+  margin-top: auto;
+  padding-top: 22px;
 }
 .offer-bottom > strong {
   font-size: 21px;
@@ -1878,6 +1985,12 @@ legend {
   color: #9aab87;
   font-size: 12px;
   margin: 12px 0;
+}
+.exchange-summary .exchange-terms {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: #fff;
+  color: #5f7390;
 }
 .exchange-summary > strong {
   color: #6d9453;
@@ -2638,6 +2751,15 @@ legend {
   .small-heading h2 {
     font-size: 21px;
   }
+  .offer-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+  .offer-filters button {
+    flex: 0 0 auto;
+  }
   .offer-grid {
     grid-template-columns: 1fr;
     gap: 18px;
@@ -2841,18 +2963,6 @@ legend {
 }
 .how-it-works b {
   color: #4878ce;
-}
-.offer-0 {
-  color: #2366d1;
-  background: #e7f0ff;
-}
-.offer-1 {
-  color: #4d62bd;
-  background: #eceeff;
-}
-.offer-2 {
-  color: #16719a;
-  background: #e5f6fc;
 }
 .profile-avatar {
   color: #2f6bff;

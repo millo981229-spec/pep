@@ -12,11 +12,13 @@ import {
 import {
   categories,
   activityCategories,
+  offerCategories,
   previewOffers,
   regions,
   type Activity,
   type Category,
   type Offer,
+  type OfferCategory,
 } from '@/lib/catalog';
 import { subregions } from '@/lib/locations';
 import {
@@ -65,6 +67,18 @@ const navigation: {
     icon: 'ticket',
   },
 ];
+const offerVisuals: Record<
+  OfferCategory,
+  { icon: IconName; kicker: string; tone: string }
+> = {
+  식음료: { icon: 'sun', kicker: 'TASTE LOCAL', tone: 'food' },
+  '문화·체험': { icon: 'art', kicker: 'FIND INSPIRATION', tone: 'culture' },
+  '스포츠·레저': { icon: 'activity', kicker: 'MOVE TOGETHER', tone: 'sports' },
+  '교통·이동': { icon: 'arrow', kicker: 'MOVE EASIER', tone: 'mobility' },
+  '여행·관광': { icon: 'compass', kicker: 'TRAVEL LIGHT', tone: 'travel' },
+  지역상품: { icon: 'leaf', kicker: 'BUY LOCAL', tone: 'local' },
+  지역상생: { icon: 'heart', kicker: 'GROW TOGETHER', tone: 'community' },
+};
 type User = { id: string; username: string };
 type Profile = {
   display_name: string;
@@ -143,6 +157,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const [activeView, setActiveView] = useState<View>(initialView);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [offers, setOffers] = useState(previewOffers);
+  const [offerCategory, setOfferCategory] = useState<'전체' | OfferCategory>(
+    '전체',
+  );
   const [preview, setPreview] = useState(true);
   const [configured, setConfigured] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -201,6 +218,13 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     category,
     query,
   });
+  const availableOfferCategories = offerCategories.filter((candidate) =>
+    offers.some((offer) => offer.category === candidate),
+  );
+  const filteredOffers =
+    offerCategory === '전체'
+      ? offers
+      : offers.filter((offer) => offer.category === offerCategory);
   const detailImageFallback = detailImageFallbackId === detail?.id;
 
   useEffect(() => {
@@ -1474,7 +1498,10 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             <div className="section-heading small-heading">
               <h2>다음 즐거움을 골라보세요</h2>
               <span className="muted small">
-                {offers.length}개의 혜택{preview ? ' 예시' : ''}
+                {offerCategory === '전체'
+                  ? `${offers.length}개의 혜택`
+                  : `${filteredOffers.length}개 / 전체 ${offers.length}개`}
+                {preview ? ' 예시' : ''}
               </span>
             </div>
             {preview && (
@@ -1484,73 +1511,96 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 않습니다.
               </p>
             )}
-            <div className="offer-grid">
-              {offers.map((offer, index) => (
-                <article key={offer.id} className="offer-card">
-                  <div className={`offer-illustration offer-${index % 3}`}>
-                    <Icon
-                      name={
-                        index % 3 === 0
-                          ? 'sun'
-                          : index % 3 === 1
-                            ? 'leaf'
-                            : 'art'
-                      }
-                      size={52}
-                    />
-                    <span>
-                      {index % 3 === 0
-                        ? 'A LITTLE BREAK'
-                        : index % 3 === 1
-                          ? 'MAKE SOMETHING'
-                          : 'FIND INSPIRATION'}
-                    </span>
-                    <span className="offer-stamp">
-                      곳곳
-                      <br />
-                      LOCAL
-                    </span>
-                  </div>
-                  <div className="offer-body">
-                    <span className="card-location">
-                      {offer.region} · {offer.merchant}
-                    </span>
-                    <h3>{offer.title}</h3>
-                    <p>{offer.description}</p>
-                    <div className="offer-bottom">
-                      <strong>
-                        {offer.cost.toLocaleString('ko-KR')}
-                        <small> P</small>
-                      </strong>
-                      <button
-                        className="button secondary"
-                        disabled={!offer.is_demo && offer.stock === 0}
-                        onClick={() => {
-                          if (offer.is_demo) {
-                            setCouponPreview(offer);
-                            return;
-                          }
-                          if (!user) {
-                            openAuth();
-                            return;
-                          }
-                          exchangeRequest.current = crypto.randomUUID();
-                          setExchangeError('');
-                          setExchange(offer);
-                        }}
-                      >
-                        {offer.is_demo
-                          ? '바코드 화면 미리보기'
-                          : offer.stock === 0
-                            ? '소진된 혜택'
-                            : '교환하기'}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div
+              className="offer-filters"
+              role="group"
+              aria-label="혜택 분야 선택"
+            >
+              {(['전체', ...availableOfferCategories] as const).map(
+                (candidate) => (
+                  <button
+                    key={candidate}
+                    type="button"
+                    className={offerCategory === candidate ? 'selected' : ''}
+                    aria-pressed={offerCategory === candidate}
+                    onClick={() => setOfferCategory(candidate)}
+                  >
+                    {candidate}
+                    <small>
+                      {candidate === '전체'
+                        ? offers.length
+                        : offers.filter((offer) => offer.category === candidate)
+                            .length}
+                    </small>
+                  </button>
+                ),
+              )}
             </div>
-            {!offers.length && !catalogLoading && (
+            <div className="offer-grid">
+              {filteredOffers.map((offer) => {
+                const visual = offerVisuals[offer.category];
+                return (
+                  <article key={offer.id} className="offer-card">
+                    <div className={`offer-illustration offer-${visual.tone}`}>
+                      <span className="offer-demo-label">
+                        {offer.is_demo
+                          ? 'DEMO · 실제 사용 불가'
+                          : offer.category}
+                      </span>
+                      <Icon name={visual.icon} size={52} />
+                      <span>{visual.kicker}</span>
+                      <span className="offer-stamp">
+                        곳곳
+                        <br />
+                        LOCAL
+                      </span>
+                    </div>
+                    <div className="offer-body">
+                      <span className="offer-category">{offer.category}</span>
+                      <span className="card-location">
+                        {offer.region} · {offer.merchant}
+                      </span>
+                      <h3>{offer.title}</h3>
+                      <p>{offer.description}</p>
+                      <p className="offer-terms">
+                        <Icon name="check" size={14} />
+                        {offer.terms}
+                      </p>
+                      <div className="offer-bottom">
+                        <strong>
+                          {offer.cost.toLocaleString('ko-KR')}
+                          <small> P</small>
+                        </strong>
+                        <button
+                          className="button secondary"
+                          disabled={!offer.is_demo && offer.stock === 0}
+                          onClick={() => {
+                            if (offer.is_demo) {
+                              setCouponPreview(offer);
+                              return;
+                            }
+                            if (!user) {
+                              openAuth();
+                              return;
+                            }
+                            exchangeRequest.current = crypto.randomUUID();
+                            setExchangeError('');
+                            setExchange(offer);
+                          }}
+                        >
+                          {offer.is_demo
+                            ? '바코드 화면 미리보기'
+                            : offer.stock === 0
+                              ? '소진된 혜택'
+                              : '교환하기'}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {!filteredOffers.length && !catalogLoading && (
               <div className="empty-state">
                 <Icon name="ticket" size={35} />
                 <h3>지역 혜택을 준비하고 있어요</h3>
@@ -2289,6 +2339,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             <Icon name="ticket" size={35} />
             <h3>{exchange.title}</h3>
             <p>{exchange.description}</p>
+            <p className="exchange-terms">{exchange.terms}</p>
             <strong>{exchange.cost.toLocaleString('ko-KR')} P</strong>
           </div>
           <p className="small muted">
@@ -2382,6 +2433,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             <span className="eyebrow">DEMO · NOT VALID</span>
             <h3>{couponPreview.title}</h3>
             <p>{couponPreview.merchant}</p>
+            <p>{couponPreview.terms}</p>
             <Barcode value="DEMO-NOT-VALID" />
             <strong>실제 사용 불가</strong>
           </div>

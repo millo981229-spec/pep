@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { subregions } from '../src/lib/locations.ts';
-import { activityCategories, catalogArtNames } from '../src/lib/catalog.ts';
+import {
+  activityCategories,
+  catalogArtNames,
+  offerCategories,
+  previewOffers,
+} from '../src/lib/catalog.ts';
 
 const base = process.env.WEB_BASE_URL || 'http://127.0.0.1:3000';
 const records = JSON.parse(
@@ -41,6 +46,23 @@ const get = async (params) => {
   );
   return { status: response.status, data: await response.json() };
 };
+assert.equal(previewOffers.length, 16);
+assert.equal(
+  new Set(previewOffers.map((offer) => offer.id)).size,
+  previewOffers.length,
+);
+assert.deepEqual(
+  new Set(previewOffers.map((offer) => offer.category)),
+  new Set(offerCategories),
+);
+for (const offer of previewOffers) {
+  assert.equal(offer.is_demo, true);
+  assert.equal(offer.stock, 0);
+  assert.ok(offer.merchant.includes('데모'));
+  assert.ok(offer.terms.trim());
+  assert.ok(offer.cost >= 1000 && offer.cost <= 6000);
+}
+console.log('✔ 7개 분야·16개 데모 혜택·사용 조건·실사용 차단');
 assert.ok(records.length >= 204);
 assert.equal(regionIds.length, 17);
 assert.equal(new Set(records.map((record) => record.id)).size, records.length);

@@ -110,6 +110,25 @@ await page.screenshot({
   fullPage: true,
 });
 
+await page.goto(`${previewUrl}#/rewards`);
+await page.waitForFunction(
+  () => document.querySelectorAll('.offer-card').length === 16,
+);
+await page.screenshot({
+  path: '/workspace/곳곳-마일리지-교환소.png',
+  fullPage: true,
+});
+await page.locator('.offer-filters button', { hasText: '스포츠·레저' }).click();
+await page.waitForFunction(
+  () => document.querySelectorAll('.offer-card').length === 2,
+);
+await page.locator('.offer-card').first().getByRole('button').click();
+await page
+  .locator('#modal-title', { hasText: '쿠폰 바코드 미리보기' })
+  .waitFor();
+await page.locator('.demo-coupon', { hasText: '실제 사용 불가' }).waitFor();
+await page.locator('.modal .icon-button').click();
+
 const mobilePage = await browser.newPage({
   viewport: { width: 390, height: 844 },
 });
@@ -142,10 +161,23 @@ await mobilePage.screenshot({
   path: '/workspace/곳곳-실사확대-모바일.png',
   fullPage: true,
 });
+await mobilePage.goto(`${previewUrl}#/rewards`);
+await mobilePage.waitForFunction(
+  () => document.querySelectorAll('.offer-card').length === 16,
+);
+if (
+  await mobilePage.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  )
+)
+  throw new Error('390px 마일리지 교환소 화면에 가로 넘침이 있습니다.');
+await mobilePage.screenshot({
+  path: '/workspace/곳곳-마일리지-교환소-모바일.png',
+});
 await mobilePage.close();
 
 if (errors.length) throw new Error(`미리보기 실행 오류: ${errors.join(' | ')}`);
 await browser.close();
 console.log(
-  'Preview navigation: four photos, photo search, direct search, suggestion, category, mobile passed',
+  'Preview navigation: photos, search, activity category, rewards filter/barcode, mobile passed',
 );

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { connection } from 'next/server';
 import {
   previewOffers,
+  offerCategories,
   categories,
   activityCategories,
   regions,
@@ -32,9 +33,14 @@ const offer = z.object({
   title: z.string(),
   merchant: z.string(),
   region: z.string(),
+  category: z.enum(offerCategories).optional().default('지역상생'),
   cost: z.number(),
   stock: z.number(),
   description: z.string(),
+  terms: z
+    .string()
+    .optional()
+    .default('교환 전 사용처와 이용 조건을 확인해 주세요.'),
   is_demo: z.boolean(),
 });
 const fields =
