@@ -110,6 +110,16 @@ const entry = `
   import {catalogPageSize,filterActivities} from './src/lib/catalog-filter';
 
   const json = (value, status = 200) => Promise.resolve(new Response(JSON.stringify(value), {status, headers:{'Content-Type':'application/json'}}));
+  const previewSessionKey = 'gotgot.preview-session.v1';
+  const previewUser = {id:'preview-visitor',username:'체험사용자'};
+  function hasPreviewSession() {
+    try {return window.sessionStorage.getItem(previewSessionKey)==='active';}
+    catch {return false;} // No browser storage means no restored preview session.
+  }
+  const previewAccount = () => ({
+    profile:[{display_name:'체험 여행자',balance:0,interests:[],gender:'unspecified'}],
+    saved:[],coupons:[],ledger:[],participations:[],
+  });
   // The standalone file never sends credentials or user inputs to a remote service.
   window.fetch = async (input, init = {}) => {
     const raw = typeof input === 'string' ? input : input.url;
@@ -122,8 +132,19 @@ const entry = `
       const page=Math.max(0,Number(params.get('page')||0));
       return json({activities:filtered.slice(page*catalogPageSize,(page+1)*catalogPageSize),offers:previewOffers,preview:true,hasMore:filtered.length>(page+1)*catalogPageSize});
     }
-    if (pathname === '/api/session' && (!init.method || init.method === 'GET')) return json({configured:false,user:null});
-    return json({error:'이 파일은 화면 미리보기입니다. 로그인·저장·실제 AI 추천·쿠폰 발급은 서버 연결 후 이용할 수 있어요.'},503);
+    if (pathname === '/api/session' && (!init.method || init.method === 'GET')) return json({configured:false,preview:true,user:hasPreviewSession()?previewUser:null});
+    if (pathname === '/api/preview-login' && init.method === 'POST') {
+      try {window.sessionStorage.setItem(previewSessionKey,'active');}
+      catch {return json({error:'체험 로그인을 위해 브라우저의 사이트 저장 공간을 허용해 주세요.'},503);}
+      return json({user:previewUser,message:'체험 사용자로 입장했습니다.'});
+    }
+    if (pathname === '/api/logout' && init.method === 'POST') {
+      try {window.sessionStorage.removeItem(previewSessionKey);}
+      catch {return json({error:'체험 로그인을 종료하지 못했습니다. 브라우저의 사이트 저장 공간을 확인해 주세요.'},503);}
+      return json({message:'체험 로그인을 종료했습니다.'});
+    }
+    if (pathname === '/api/account' && (!init.method || init.method === 'GET')) return hasPreviewSession()?json(previewAccount()):json({error:'로그인 버튼으로 체험을 시작해 주세요.'},401);
+    return json({error:'현재 체험 화면입니다. 실제 저장·AI 추천·마일리지 적립·쿠폰 발급은 서버 연결 후 이용할 수 있어요.'},503);
   };
   const views = new Set(['home','explore','map','recommend','rewards','my']);
   function readRoute() {
@@ -134,7 +155,7 @@ const entry = `
   function OfflineWebsite() {
     const [route,setRoute] = useState(readRoute);
     useEffect(() => {const update=()=>{setRoute(readRoute());window.scrollTo({top:0,behavior:'instant'});};window.addEventListener('hashchange',update);return ()=>window.removeEventListener('hashchange',update);},[]);
-    return <><aside className="offline-preview-banner" role="note"><strong>곳곳 · 웹 미리보기</strong><span>지역 정보 {regionalActivities.length}개 · 최신 일정·이용 정보 확인 필요 · 로그인·AI·마일리지 발급은 서버 연결 필요</span></aside><PlatformApp key={route.key} initialView={route.view}/></>;
+    return <><aside className="offline-preview-banner" role="note"><strong>곳곳 · 웹 미리보기</strong><span>로그인 버튼으로 체험 시작 · 지역 정보 {regionalActivities.length}개 · 실제 AI·마일리지·쿠폰은 서버 연결 필요</span></aside><PlatformApp key={route.key} initialView={route.view}/></>;
   }
   createRoot(document.getElementById('root')).render(<OfflineWebsite/>);
 `;
@@ -185,7 +206,7 @@ const bundle = await build({
 const extraCss = `.offline-preview-banner{padding:9px 20px;background:#153b7a;color:#fff;display:flex;justify-content:center;gap:16px;align-items:center;font-size:12px;line-height:1.6;text-align:center}.offline-preview-banner strong{white-space:nowrap}.offline-preview-banner span{opacity:.85}@media(max-width:600px){.offline-preview-banner{flex-direction:column;gap:0;padding:7px 14px;font-size:10px}}`;
 const code = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const html = `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="곳곳 지역활동 플랫폼의 오프라인 웹 미리보기. 실제 로그인, AI 추천, 쿠폰 발급 기능은 서버 연결이 필요합니다."><title>곳곳 | 웹 미리보기</title><style>${css}\n${font}\n${extraCss}</style></head><body><div id="root"></div><noscript>이 미리보기를 보려면 브라우저의 JavaScript를 켜주세요.</noscript><script>${code}</script><!-- Font provenance: ${fontInfo.replaceAll('--', '—')} --><!-- Font license: ${license.replaceAll('--', '—')} --></body></html>`;
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="곳곳 지역활동 플랫폼의 웹 미리보기. 로그인 버튼으로 체험할 수 있으며 실제 인증, AI 추천, 쿠폰 발급은 서버 연결이 필요합니다."><title>곳곳 | 웹 미리보기</title><style>${css}\n${font}\n${extraCss}</style></head><body><div id="root"></div><noscript>이 미리보기를 보려면 브라우저의 JavaScript를 켜주세요.</noscript><script>${code}</script><!-- Font provenance: ${fontInfo.replaceAll('--', '—')} --><!-- Font license: ${license.replaceAll('--', '—')} --></body></html>`;
 await mkdir(path.dirname(output), { recursive: true });
 await writeFile(output, html, 'utf8');
 console.log(`Preview: ${output}`);

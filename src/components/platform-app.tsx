@@ -192,6 +192,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   );
   const [preview, setPreview] = useState(true);
   const [configured, setConfigured] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -413,10 +414,13 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     [],
   );
   useEffect(() => {
-    api<{ user: User | null; configured: boolean }>('/api/session')
+    api<{ user: User | null; configured: boolean; preview?: boolean }>(
+      '/api/session',
+    )
       .then((data) => {
         setUser(data.user);
         setConfigured(data.configured);
+        setPreviewMode(data.preview === true);
         if (data.user) void loadAccount();
       })
       .catch((error) => setAccountError(errorMessage(error)))
@@ -474,7 +478,29 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     setDetail(null);
     setAuthError('');
     setAuthNotice('');
+    if (previewMode) {
+      void loginPreview();
+      return;
+    }
     setAuthOpen(true);
+  }
+  async function loginPreview() {
+    if (busy) return;
+    setBusy('auth');
+    try {
+      const result = await api<{ message: string; user: User }>(
+        '/api/preview-login',
+        {},
+      );
+      setUser(result.user);
+      await loadAccount();
+      setAuthOpen(false);
+      setToast(result.message);
+    } catch (error) {
+      setToast(errorMessage(error));
+    } finally {
+      setBusy('');
+    }
   }
   async function saveActivity(activity: Activity) {
     if (activity.reference) {
@@ -540,7 +566,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       setUser(null);
       setAccount(null);
       setRecommendations([]);
-      setToast('로그아웃했습니다.');
+      setToast(
+        previewMode ? '체험 로그인을 종료했습니다.' : '로그아웃했습니다.',
+      );
     } catch (error) {
       setToast(errorMessage(error));
     } finally {
@@ -915,7 +943,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               <>
                 <Link href="/my" className="account-link">
                   <Icon name="user" size={18} />
-                  <span>마이</span>
+                  <span>{previewMode ? '마이 · 체험' : '마이'}</span>
                 </Link>
                 <button
                   className="logout-button"
@@ -930,10 +958,14 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               <button
                 className="login-button"
                 onClick={openAuth}
-                disabled={sessionLoading}
+                disabled={sessionLoading || busy === 'auth'}
               >
                 <Icon name="user" size={18} />
-                {sessionLoading ? '확인 중' : '로그인'}
+                {sessionLoading
+                  ? '확인 중'
+                  : busy === 'auth'
+                    ? '로그인 중…'
+                    : '로그인'}
               </button>
             )}
           </div>
@@ -1980,7 +2012,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </button>
                 {!configured && (
                   <p className="small muted">
-                    현재 로그인 서비스를 연결하는 중입니다.
+                    {previewMode
+                      ? '로그인하기를 누르면 체험 사용자로 바로 입장합니다.'
+                      : '현재 로그인 서비스를 연결하는 중입니다.'}
                   </p>
                 )}
               </div>
@@ -1992,7 +2026,10 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                   </span>
                   <div>
                     <h2>{profile?.display_name || '여행자'}님의 곳곳</h2>
-                    <p>@{user.username}</p>
+                    <p>
+                      @{user.username}
+                      {previewMode && ' · 이 브라우저의 체험 사용자'}
+                    </p>
                   </div>
                   <strong>
                     {(profile?.balance || 0).toLocaleString('ko-KR')}
