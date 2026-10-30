@@ -6,6 +6,11 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { promisify } = require('node:util');
+const publicActivities = require('../src/lib/regional-catalog.json');
+
+const publicActivityById = new Map(
+  publicActivities.map((activity) => [activity.id, activity]),
+);
 
 const scrypt = promisify(crypto.scrypt);
 const STORE_VERSION = 1;
@@ -286,21 +291,17 @@ class AuthStore {
         throw new AuthError(409, '이미 GPS 인증과 적립을 완료한 활동입니다.');
       const createdAt = new Date().toISOString();
       const id = crypto.randomUUID();
-      const activity = {
-        id: evidence.place.activityId,
-        title: evidence.place.title,
-        region: evidence.place.region,
-        city: evidence.place.city,
-        category: evidence.place.category,
-        description: `${evidence.place.title} 현장 GPS 인증`,
-        duration: '현장 GPS 인증',
-        price: null,
-        reward: evidence.place.reward,
-        image: 'festival-market',
-        date: `${evidence.place.startDate} ~ ${evidence.place.endDate}`,
-        is_demo: false,
-        tags: ['GPS 인증', evidence.place.city],
-      };
+      const publicActivity = publicActivityById.get(evidence.place.activityId);
+      if (!publicActivity)
+        throw new AuthError(404, '방문 인증 장소 정보를 다시 확인해 주세요.');
+      const activity = structuredClone(publicActivity);
+      activity.reward = evidence.place.reward;
+      // Keep the canonical venue/reference for reopening MY history, while
+      // storing no latitude/longitude in the member's account snapshot.
+      if (activity.reference?.location) {
+        delete activity.reference.location.latitude;
+        delete activity.reference.location.longitude;
+      }
       const checkIn = {
         id,
         activityId: evidence.place.activityId,

@@ -74,11 +74,13 @@ export function ActivityCard({
           {activity.is_demo && <span className="preview-tag">예시</span>}
           {activity.reference && (
             <span className="preview-tag">
-              {activity.reference.kind === 'landmark'
-                ? '지역 명소'
-                : activity.reference.kind === 'place'
-                  ? '활동 안내'
-                  : '지역 정보'}
+              {activity.reference.participationType === 'contact-required'
+                ? '보호센터 안내'
+                : activity.reference.kind === 'landmark'
+                  ? '지역 명소'
+                  : activity.reference.kind === 'place'
+                    ? '활동 안내'
+                    : '지역 정보'}
             </span>
           )}
         </div>

@@ -3916,6 +3916,7 @@ select:focus-visible,
   display: none;
 }
 .home-notice {
+  flex-wrap: wrap;
   max-width: 1240px;
   min-height: 48px;
   margin: 20px auto 0;
@@ -3927,6 +3928,10 @@ select:focus-visible,
   gap: 12px;
   color: #37425a;
   font-size: 13px;
+}
+.home-notice .text-link {
+  margin-left: auto;
+  white-space: nowrap;
 }
 .home-notice strong {
   padding: 3px 8px;

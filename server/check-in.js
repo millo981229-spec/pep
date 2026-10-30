@@ -46,17 +46,24 @@ function finiteNumber(value, minimum, maximum, message) {
 }
 
 function validateGpsCheckIn(input, { now = Date.now } = {}) {
-  if (!input || typeof input !== 'object')
+  if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new AuthError(400, 'GPS 인증 정보를 확인해 주세요.');
   const activityId =
     typeof input.activityId === 'string' ? input.activityId.trim() : '';
   if (!activityId || activityId.length > 100)
     throw new AuthError(400, '인증할 활동을 확인해 주세요.');
   const place = places.find((candidate) => candidate.activityId === activityId);
-  if (!place) throw new AuthError(404, 'GPS 인증을 지원하지 않는 활동입니다.');
+  if (!place || place.accessPolicy !== 'walk-in')
+    throw new AuthError(
+      404,
+      '예약 없이 장소 방문을 인증할 수 있는 산책 장소가 아닙니다.',
+    );
   const currentTime = now();
   const today = kstDate(currentTime);
-  if (today < place.startDate || today > place.endDate)
+  if (
+    (place.startDate && today < place.startDate) ||
+    (place.endDate && today > place.endDate)
+  )
     throw new AuthError(409, '현재 GPS 인증 기간이 아닌 활동입니다.');
 
   const latitude = finiteNumber(

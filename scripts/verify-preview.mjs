@@ -155,7 +155,9 @@ await page.screenshot({
 });
 await page.locator('.modal .icon-button').click();
 await page.getByRole('button', { name: '인증 장소 열기' }).click();
-await page.locator('#modal-title', { hasText: '노원달빛산책' }).waitFor();
+await page
+  .locator('#modal-title', { hasText: '당현천 산책 방문 인증' })
+  .waitFor();
 await page.getByRole('button', { name: '현재 위치로 인증하기' }).click();
 await page.getByText(/현장 위치가 확인되었습니다/).waitFor();
 await page.locator('.modal .icon-button').click();

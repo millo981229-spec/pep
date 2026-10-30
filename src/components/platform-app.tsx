@@ -141,6 +141,14 @@ type GpsCheckState = {
   distanceMeters?: number;
   accuracyMeters?: number;
 };
+class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 async function api<T>(
   url: string,
@@ -163,7 +171,10 @@ async function api<T>(
   });
   const result = await response.json();
   if (!response.ok)
-    throw new Error(result.error || '요청을 처리하지 못했습니다.');
+    throw new ApiError(
+      response.status,
+      result.error || '요청을 처리하지 못했습니다.',
+    );
   return result as T;
 }
 const errorMessage = (error: unknown) =>
@@ -210,8 +221,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const [couponFlow, setCouponFlow] = useState<CouponPassState>('ready');
   const [couponBusy, setCouponBusy] = useState(false);
   const [checkInActivityId, setCheckInActivityId] = useState(
-    'guide-festival-2862358',
+    'walk-seoul-danghyeoncheon',
   );
+  const gpsRequestVersion = useRef(0);
   const [gpsCheck, setGpsCheck] = useState<GpsCheckState>({
     status: 'idle',
     message: '',
@@ -231,6 +243,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
   const [editSaved, setEditSaved] = useState<Saved | null>(null);
   const [accountTime, setAccountTime] = useState(0);
   const catalogVersion = useRef(0);
+  const accountRequestVersion = useRef(0);
   const [today, setToday] = useState('');
   const profile = account?.profile[0];
   const activeCheckInPlaces = checkInPlaces.filter((place) =>
@@ -247,6 +260,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         (participation) => participation.activity_id === detail.id,
       )
     : undefined;
+  const detailGpsCompleted =
+    gpsCheck.status === 'success' || detailParticipation?.status === 'approved';
   const selectedRegion = regions.find((r) => r.id === region);
   const visible = filterActivities(activities, {
     region,
@@ -360,15 +375,42 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     },
     [region, district, category, query],
   );
-  async function loadAccount() {
+  const recoverExpiredSession = useCallback((error: unknown) => {
+    if (!(error instanceof ApiError) || error.status !== 401) return false;
+    gpsRequestVersion.current += 1;
+    accountRequestVersion.current += 1;
+    setUser(null);
+    setAccount(null);
+    setDetail(null);
+    setCouponOpen(null);
+    setExchange(null);
+    setRecommendations([]);
+    setAuthError('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+    setAuthNotice('');
+    setAuthOpen(true);
+    return true;
+  }, []);
+  const loadAccount = useCallback(async () => {
+    const version = ++accountRequestVersion.current;
     setAccountError('');
     try {
-      setAccount(await api<Account>('/api/account'));
+      const result = await api<Account>('/api/account');
+      if (version !== accountRequestVersion.current) return;
+      setAccount(result);
       setAccountTime(Date.now());
     } catch (error) {
+      if (version !== accountRequestVersion.current) return;
+      if (recoverExpiredSession(error)) return;
       setAccountError(errorMessage(error));
     }
-  }
+  }, [recoverExpiredSession]);
+  useEffect(
+    () => () => {
+      gpsRequestVersion.current += 1;
+      accountRequestVersion.current += 1;
+    },
+    [],
+  );
   useEffect(() => {
     api<{ user: User | null; configured: boolean }>('/api/session')
       .then((data) => {
@@ -378,7 +420,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       })
       .catch((error) => setAccountError(errorMessage(error)))
       .finally(() => setSessionLoading(false));
-  }, []);
+  }, [loadAccount]);
   useEffect(() => {
     const controller = new AbortController();
     catalogVersion.current += 1;
@@ -420,12 +462,15 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       await loadAccount();
       return true;
     } catch (error) {
+      recoverExpiredSession(error);
       throw error;
     } finally {
       setBusy('');
     }
   }
   function openAuth() {
+    gpsRequestVersion.current += 1;
+    setDetail(null);
     setAuthError('');
     setAuthNotice('');
     setAuthOpen(true);
@@ -486,6 +531,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     }
   }
   async function logout() {
+    gpsRequestVersion.current += 1;
+    accountRequestVersion.current += 1;
     setBusy('logout');
     try {
       await api('/api/logout', {});
@@ -524,12 +571,13 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       );
       setRecommendations(result.recommendations);
     } catch (error) {
-      setAiError(errorMessage(error));
+      if (!recoverExpiredSession(error)) setAiError(errorMessage(error));
     } finally {
       setBusy('');
     }
   }
   function openDetail(activity: Activity) {
+    gpsRequestVersion.current += 1;
     setDetail(activity);
     setDetailError('');
     setParticipating(false);
@@ -560,7 +608,17 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     }
   }
   async function verifyGps(place: CheckInPlace) {
-    if (gpsCheck.status === 'checking') return;
+    if (
+      gpsCheck.status === 'checking' ||
+      gpsCheck.status === 'success' ||
+      account?.participations.some(
+        (item) =>
+          item.activity_id === place.activityId && item.status === 'approved',
+      )
+    )
+      return;
+    const version = ++gpsRequestVersion.current;
+    const isCurrent = () => gpsRequestVersion.current === version;
     if (!navigator.geolocation) {
       setGpsCheck({
         status: 'error',
@@ -581,6 +639,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             timeout: 12_000,
           }),
       );
+      if (!isCurrent()) return;
       const { latitude, longitude, accuracy } = position.coords;
       const distance = Math.round(
         gpsDistanceMeters(
@@ -610,9 +669,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
       if (!configured || !user) {
         setGpsCheck({
           status: 'verified',
-          message: user
-            ? `현장 위치가 확인되었습니다. 서버 연결 후 ${place.reward.toLocaleString('ko-KR')} P를 적립할 수 있어요.`
-            : `현장 위치가 확인되었습니다. 로그인하면 ${place.reward.toLocaleString('ko-KR')} P를 적립할 수 있어요.`,
+          message: !configured
+            ? '현장 위치가 확인되었습니다. 이 미리보기에서는 포인트를 저장하지 않습니다.'
+            : `현장 위치가 확인되었습니다. 로그인 후 다시 인증하면 ${place.reward.toLocaleString('ko-KR')} P를 적립할 수 있어요.`,
           distanceMeters: distance,
           accuracyMeters,
         });
@@ -625,6 +684,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         accuracy,
         capturedAt: position.timestamp,
       });
+      await loadAccount();
+      if (!isCurrent()) return;
       setGpsCheck({
         status: 'success',
         message: result.message,
@@ -632,8 +693,8 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         accuracyMeters,
       });
       setToast(result.message);
-      await loadAccount();
     } catch (error) {
+      if (!isCurrent() || recoverExpiredSession(error)) return;
       const locationError =
         error &&
         typeof error === 'object' &&
@@ -682,22 +743,6 @@ export function PlatformApp({ initialView }: { initialView: View }) {
     if (participation.status === 'rejected') return '확인 불가';
     return '확인 중';
   }
-  const cards = (items: Activity[]) => (
-    <div className="activity-grid">
-      {items.map((activity) => (
-        <ActivityCard
-          key={activity.id}
-          activity={activity}
-          today={today}
-          saved={Boolean(
-            account?.saved.some((s) => s.activity_id === activity.id),
-          )}
-          onOpen={() => openDetail(activity)}
-          onSave={() => void saveActivity(activity)}
-        />
-      ))}
-    </div>
-  );
   const empty = (
     <div className="empty-state">
       <Icon name="compass" size={36} />
@@ -977,6 +1022,12 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               <div className="home-notice">
                 <strong>공지</strong>
                 <span>전국 곳곳의 새로운 지역 활동을 지금 만나보세요.</span>
+                <Link
+                  href={`/explore?category=${encodeURIComponent('봉사·커뮤니티')}&q=${encodeURIComponent('유기견')}`}
+                  className="text-link"
+                >
+                  유기견 보호센터 <Icon name="heart" size={15} />
+                </Link>
               </div>
               <section
                 className="home-photo-section"
@@ -1147,7 +1198,10 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <button
                   key={item}
                   className={category === item ? 'selected' : ''}
-                  onClick={() => setCategory(item)}
+                  onClick={() => {
+                    if (query === '유기견') setQuery('');
+                    setCategory(item);
+                  }}
                   aria-pressed={category === item}
                 >
                   <Icon
@@ -1167,7 +1221,31 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                   {item}
                 </button>
               ))}
+              <button
+                type="button"
+                className={
+                  category === '봉사·커뮤니티' && query === '유기견'
+                    ? 'selected'
+                    : ''
+                }
+                aria-pressed={
+                  category === '봉사·커뮤니티' && query === '유기견'
+                }
+                onClick={() => {
+                  setCategory('봉사·커뮤니티');
+                  setQuery('유기견');
+                }}
+              >
+                <Icon name="heart" size={17} /> 유기견 보호센터
+              </button>
             </div>
+            {category === '봉사·커뮤니티' && query === '유기견' && (
+              <p className="preview-note">
+                <Icon name="info" size={15} />
+                보호센터의 봉사·입양 안내입니다. 방문·봉사는 센터의 신청 조건을
+                확인해야 하며 자동 마일리지 적립 대상은 아닙니다.
+              </p>
+            )}
             {activities.some((activity) => activity.reference) && (
               <p className="preview-note">
                 <Icon name="info" size={15} />
@@ -1200,7 +1278,24 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </button>
               </div>
             ) : visible.length ? (
-              cards(activeView === 'home' ? visible.slice(0, 3) : visible)
+              <div className="activity-grid">
+                {(activeView === 'home' ? visible.slice(0, 3) : visible).map(
+                  (activity) => (
+                    <ActivityCard
+                      key={activity.id}
+                      activity={activity}
+                      today={today}
+                      saved={Boolean(
+                        account?.saved.some(
+                          (saved) => saved.activity_id === activity.id,
+                        ),
+                      )}
+                      onOpen={() => openDetail(activity)}
+                      onSave={() => void saveActivity(activity)}
+                    />
+                  ),
+                )}
+              </div>
             ) : (
               empty
             )}
@@ -1656,11 +1751,11 @@ export function PlatformApp({ initialView }: { initialView: View }) {
             </div>
             <div className="how-it-works">
               <span>
-                <b>01</b>활동에 참여하고
+                <b>01</b>가까운 산책 장소 방문
               </span>
               <Icon name="arrow" size={16} />
               <span>
-                <b>02</b>참여 확인 후 적립
+                <b>02</b>GPS 방문 확인 후 적립
               </span>
               <Icon name="arrow" size={16} />
               <span>
@@ -1674,20 +1769,24 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </span>
                 <div>
                   <span className="eyebrow">ON-SITE GPS CHECK-IN</span>
-                  <h2 id="gps-title">현장에서 위치 인증하고 포인트 받기</h2>
+                  <h2 id="gps-title">
+                    예약 없는 산책, 방문 인증으로 포인트 받기
+                  </h2>
                   <p>
-                    행사 장소 250m 안에서 현재 위치를 확인하면 한 번만
-                    적립됩니다. 정확한 위도·경도는 저장하지 않습니다.
+                    공공 산책 구간 250m 안에서 위치를 확인하면 장소마다 한 번만
+                    적립됩니다. 예약형 행사·유료 시설·보호센터 봉사는 자동 적립
+                    대상에서 제외했습니다.
                   </p>
                 </div>
               </div>
               {activeCheckInPlaces.length ? (
                 <div className="gps-place-picker">
                   <label>
-                    <span>오늘 인증 가능한 장소</span>
+                    <span>예약 없이 방문할 수 있는 산책 장소</span>
                     <select
                       value={selectedCheckInPlace?.activityId || ''}
                       onChange={(event) => {
+                        gpsRequestVersion.current += 1;
                         setCheckInActivityId(event.target.value);
                         setGpsCheck({ status: 'idle', message: '' });
                       }}
@@ -1719,13 +1818,14 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </div>
               ) : (
                 <p className="gps-empty">
-                  오늘 인증 가능한 행사가 없습니다. 행사 기간에 다시 확인해
+                  현재 인증 가능한 산책 장소가 없습니다. 잠시 후 다시 확인해
                   주세요.
                 </p>
               )}
               <small>
-                휴대전화의 위치 권한이 필요합니다. 브라우저 GPS는 조작될 수 있어
-                실제 운영 시 현장 QR·직원 확인을 함께 적용합니다.
+                휴대전화 위치 권한이 필요하며 현장 개방·통제는 방문 전에 확인해
+                주세요. GPS는 장소 방문만 확인하고 행사 참가나 봉사 완료를
+                인증하지 않습니다. 정확한 위도·경도는 저장하지 않습니다.
               </small>
             </section>
             <div className="section-heading small-heading">
@@ -2243,6 +2343,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
               : '나의 곳곳을 시작해 볼까요?'
           }
           onClose={() => {
+            gpsRequestVersion.current += 1;
             if (busy !== 'auth') setAuthOpen(false);
           }}
         >
@@ -2332,6 +2433,7 @@ export function PlatformApp({ initialView }: { initialView: View }) {
         <Modal
           title={detail.title}
           onClose={() => {
+            gpsRequestVersion.current += 1;
             setDetail(null);
             setParticipating(false);
           }}
@@ -2463,28 +2565,31 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 <section className="gps-check-card" aria-live="polite">
                   <div>
                     <span>
-                      <Icon name="pin" size={18} /> 현장 GPS 인증
+                      <Icon name="pin" size={18} /> 산책 장소 방문 인증
                     </span>
                     <strong>
                       +{detailCheckInPlace.reward.toLocaleString('ko-KR')} P
                     </strong>
                   </div>
                   <p>
-                    이 장소 {detailCheckInPlace.radiusMeters}m 안에서 GPS 오차가{' '}
-                    {detailCheckInPlace.maxAccuracyMeters}m 이하일 때
+                    {detailCheckInPlace.accessNotice}
+                    <br />이 장소 {detailCheckInPlace.radiusMeters}m 안에서 GPS
+                    오차가 {detailCheckInPlace.maxAccuracyMeters}m 이하일 때
                     인증됩니다. 활동당 한 번만 적립할 수 있어요.
                   </p>
                   <button
                     type="button"
                     className="button primary full"
-                    disabled={gpsCheck.status === 'checking'}
+                    disabled={
+                      gpsCheck.status === 'checking' || detailGpsCompleted
+                    }
                     onClick={() => void verifyGps(detailCheckInPlace)}
                   >
                     <Icon name="pin" size={17} />
-                    {gpsCheck.status === 'checking'
-                      ? '현재 위치 확인 중…'
-                      : gpsCheck.status === 'success'
-                        ? '인증·적립 완료'
+                    {detailGpsCompleted
+                      ? '인증·적립 완료'
+                      : gpsCheck.status === 'checking'
+                        ? '현재 위치 확인 중…'
                         : '현재 위치로 인증하기'}
                   </button>
                   {gpsCheck.message && (
@@ -2519,7 +2624,9 @@ export function PlatformApp({ initialView }: { initialView: View }) {
                 </section>
               ) : (
                 <p className="small muted">
-                  지역 소개 정보이며 현재 GPS 마일리지 인증 기간은 아닙니다.
+                  {detail.reference.participationType === 'contact-required'
+                    ? '봉사·입양은 센터 상담과 신청 조건 확인이 필요합니다. 이 시설은 자동 GPS 마일리지 적립 대상이 아닙니다.'
+                    : '방문 정보 안내이며 자동 GPS 마일리지 적립 대상은 아닙니다.'}
                   이미지는 장소 사진 또는 출처가 표시된 지역 대표 이미지입니다.
                 </p>
               )}

@@ -1,15 +1,15 @@
 {
   "checkedOn": "2026-10-30",
-  "catalogRecords": 505,
+  "catalogRecords": 518,
   "districts": 230,
   "districtsWithTwoPlaces": 230,
   "locationsByStatus": {
-    "source-coordinates": 305,
-    "locality-query": 198,
+    "source-coordinates": 310,
+    "locality-query": 206,
     "conflict": 1,
     "unknown": 1
   },
-  "gpsEligibleActivities": 35,
+  "gpsEligibleActivities": 5,
   "naverDirectlyVerified": 0,
   "naverVerificationBlocker": "map.naver.com CONNECT 403: environment network policy",
   "coverage": [
@@ -76,8 +76,8 @@
     {
       "region": "seoul",
       "district": "노원구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "seoul",
@@ -94,8 +94,8 @@
     {
       "region": "seoul",
       "district": "마포구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "seoul",
@@ -172,8 +172,8 @@
     {
       "region": "busan",
       "district": "서구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "busan",
@@ -232,8 +232,8 @@
     {
       "region": "busan",
       "district": "강서구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "busan",
@@ -244,8 +244,8 @@
     {
       "region": "busan",
       "district": "수영구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "busan",
@@ -268,8 +268,8 @@
     {
       "region": "daegu",
       "district": "동구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "daegu",
@@ -352,8 +352,8 @@
     {
       "region": "incheon",
       "district": "계양구",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "incheon",
@@ -400,8 +400,8 @@
     {
       "region": "gwangju",
       "district": "북구",
-      "places": 5,
-      "distinctPlaces": 5
+      "places": 6,
+      "distinctPlaces": 6
     },
     {
       "region": "gwangju",
@@ -430,8 +430,8 @@
     {
       "region": "daejeon",
       "district": "유성구",
-      "places": 3,
-      "distinctPlaces": 3
+      "places": 4,
+      "distinctPlaces": 4
     },
     {
       "region": "daejeon",
@@ -466,14 +466,14 @@
     {
       "region": "ulsan",
       "district": "울주군",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "sejong",
       "district": "세종시 전역",
-      "places": 7,
-      "distinctPlaces": 5
+      "places": 8,
+      "distinctPlaces": 6
     },
     {
       "region": "gyeonggi",
@@ -892,8 +892,8 @@
     {
       "region": "chungnam",
       "district": "부여군",
-      "places": 3,
-      "distinctPlaces": 3
+      "places": 4,
+      "distinctPlaces": 4
     },
     {
       "region": "chungnam",
@@ -1276,8 +1276,8 @@
     {
       "region": "gyeongnam",
       "district": "창원시",
-      "places": 2,
-      "distinctPlaces": 2
+      "places": 3,
+      "distinctPlaces": 3
     },
     {
       "region": "gyeongnam",

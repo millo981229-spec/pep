@@ -47,6 +47,10 @@ export function catalogSearchParams(filters: CatalogFilters, page = 0) {
   });
 }
 export function activityPrice(activity: Activity) {
+  if (activity.reference?.participationType === 'walk-in' && activity.reward)
+    return `방문 인증 +${activity.reward.toLocaleString('ko-KR')} P`;
+  if (activity.reference?.participationType === 'contact-required')
+    return '봉사·입양 안내';
   return activity.price === null
     ? '가격 확인 필요'
     : activity.price === 0

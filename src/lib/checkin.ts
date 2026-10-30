@@ -12,20 +12,29 @@ export type CheckInPlace = {
   radiusMeters: number;
   maxAccuracyMeters: number;
   reward: number;
-  startDate: string;
-  endDate: string;
+  accessPolicy: 'walk-in';
+  accessNotice: string;
+  startDate?: string;
+  endDate?: string;
   sourceLabel: string;
   sourceUrl: string;
 };
 
-export const checkInPlaces: CheckInPlace[] = rawPlaces;
+export const checkInPlaces: CheckInPlace[] = rawPlaces
+  .filter((place) => place.accessPolicy === 'walk-in')
+  .map((place) => ({ ...place, accessPolicy: 'walk-in' as const }));
 
 export function checkInPlace(activityId: string) {
   return checkInPlaces.find((place) => place.activityId === activityId);
 }
 
 export function placeAcceptsCheckIn(place: CheckInPlace, today: string) {
-  return Boolean(today && today >= place.startDate && today <= place.endDate);
+  return Boolean(
+    place.accessPolicy === 'walk-in' &&
+    today &&
+    (!place.startDate || today >= place.startDate) &&
+    (!place.endDate || today <= place.endDate),
+  );
 }
 
 export function gpsDistanceMeters(

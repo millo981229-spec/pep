@@ -246,6 +246,8 @@ export type Activity = {
     sourceDate: string;
     verification: 'snapshot' | 'link-only';
     notice: string;
+    participationType?:
+      'walk-in' | 'contact-required' | 'reservation-required' | 'unknown';
     website?: string;
     startDate?: string;
     endDate?: string;
